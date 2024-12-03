@@ -10,6 +10,10 @@ class DrawingBoard {
         this.brushSizeDisplay = document.getElementById('brushSizeDisplay');
         this.colorHistory = ['#000000'];
         this.colorHistoryContainer = document.getElementById('colorHistory');
+        this.currentTool = 'brush';
+        this.startX = 0;
+        this.startY = 0;
+        this.imageData = null;
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -47,23 +51,63 @@ class DrawingBoard {
         });
         document.getElementById('clear').addEventListener('click', this.clearCanvas.bind(this));
         document.getElementById('download').addEventListener('click', this.downloadCanvas.bind(this));
+
+        // Add tool selection listeners
+        document.querySelectorAll('.tool').forEach(tool => {
+            tool.addEventListener('click', (e) => {
+                document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+                e.target.closest('.tool').classList.add('active');
+                this.currentTool = e.target.closest('.tool').id;
+            });
+        });
     }
 
     startDrawing(e) {
         this.isDrawing = true;
-        this.ctx.beginPath();
-        const [x, y] = this.getMousePos(e);
-        this.ctx.moveTo(x, y);
+        [this.startX, this.startY] = this.getMousePos(e);
+
+        if (this.currentTool === 'brush') {
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.startX, this.startY);
+        } else {
+            // Save the canvas state before drawing shapes
+            this.imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        }
     }
 
     draw(e) {
         if (!this.isDrawing) return;
         
         const [x, y] = this.getMousePos(e);
-        this.ctx.lineTo(x, y);
         this.ctx.strokeStyle = this.color;
         this.ctx.lineWidth = this.brushSize;
-        this.ctx.stroke();
+
+        if (this.currentTool === 'brush') {
+            this.ctx.lineTo(x, y);
+            this.ctx.stroke();
+        } else {
+            // Restore the previous state before drawing the new shape
+            this.ctx.putImageData(this.imageData, 0, 0);
+            this.ctx.beginPath();
+
+            switch (this.currentTool) {
+                case 'line':
+                    this.ctx.moveTo(this.startX, this.startY);
+                    this.ctx.lineTo(x, y);
+                    break;
+                case 'rectangle':
+                    const width = x - this.startX;
+                    const height = y - this.startY;
+                    this.ctx.rect(this.startX, this.startY, width, height);
+                    break;
+                case 'circle':
+                    const radius = Math.sqrt(Math.pow(x - this.startX, 2) + Math.pow(y - this.startY, 2));
+                    this.ctx.arc(this.startX, this.startY, radius, 0, 2 * Math.PI);
+                    break;
+            }
+            
+            this.ctx.stroke();
+        }
     }
 
     stopDrawing() {

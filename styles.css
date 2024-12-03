@@ -35,6 +35,11 @@
     font-size: 18px;
 }
 
+.controls button.tool.active {
+    background: #e0e0e0;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+}
+
 .divider {
     width: 1px;
     height: 24px;
