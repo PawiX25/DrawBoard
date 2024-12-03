@@ -15,6 +15,10 @@ class DrawingBoard {
         this.startY = 0;
         this.imageData = null;
         this.fillShape = false;
+        this.textInput = document.getElementById('textInput');
+        this.fontSelect = document.getElementById('fontSelect');
+        this.fontSize = document.getElementById('fontSize');
+        this.textControls = document.querySelector('.text-controls');
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -62,11 +66,23 @@ class DrawingBoard {
                 document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
                 e.target.closest('.tool').classList.add('active');
                 this.currentTool = e.target.closest('.tool').id;
+                this.textControls.style.display = this.currentTool === 'text' ? 'flex' : 'none';
             });
         });
     }
 
     startDrawing(e) {
+        if (this.currentTool === 'text') {
+            const [x, y] = this.getMousePos(e);
+            const text = this.textInput.value.trim();
+            if (text) {
+                this.ctx.font = `${this.fontSize.value}px ${this.fontSelect.value}`;
+                this.ctx.fillStyle = this.color;
+                this.ctx.fillText(text, x, y);
+                this.saveState();
+            }
+            return;
+        }
         this.isDrawing = true;
         [this.startX, this.startY] = this.getMousePos(e);
 
@@ -80,6 +96,7 @@ class DrawingBoard {
     }
 
     draw(e) {
+        if (this.currentTool === 'text') return;
         if (!this.isDrawing) return;
         
         const [x, y] = this.getMousePos(e);

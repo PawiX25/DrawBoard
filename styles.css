@@ -108,3 +108,29 @@ button {
 .fill-option input[type="checkbox"] {
     cursor: pointer;
 }
+
+.text-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.text-controls input[type="text"] {
+    width: 120px;
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.text-controls select {
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.text-controls input[type="number"] {
+    width: 50px;
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
