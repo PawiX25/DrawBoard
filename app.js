@@ -19,6 +19,7 @@ class DrawingBoard {
         this.fontSelect = document.getElementById('fontSelect');
         this.fontSize = document.getElementById('fontSize');
         this.textControls = document.querySelector('.text-controls');
+        this.fileInput = document.getElementById('fileInput');
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -69,6 +70,8 @@ class DrawingBoard {
                 this.textControls.style.display = this.currentTool === 'text' ? 'flex' : 'none';
             });
         });
+        this.fileInput.addEventListener('change', this.handleImageUpload.bind(this));
+        document.addEventListener('paste', this.handlePaste.bind(this));
     }
 
     startDrawing(e) {
@@ -227,6 +230,50 @@ class DrawingBoard {
             });
             this.colorHistoryContainer.appendChild(swatch);
         });
+    }
+
+    handleImageUpload(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            this.loadImage(file);
+        }
+        this.fileInput.value = '';
+    }
+
+    handlePaste(e) {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let item of items) {
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                this.loadImage(file);
+                break;
+            }
+        }
+    }
+
+    loadImage(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const x = (this.canvas.width - img.width) / 2;
+                const y = (this.canvas.height - img.height) / 2;
+                
+                const scale = Math.min(
+                    this.canvas.width / img.width,
+                    this.canvas.height / img.height
+                );
+                const width = img.width * scale;
+                const height = img.height * scale;
+                const centerX = (this.canvas.width - width) / 2;
+                const centerY = (this.canvas.height - height) / 2;
+                
+                this.ctx.drawImage(img, centerX, centerY, width, height);
+                this.saveState();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
     }
 }
 

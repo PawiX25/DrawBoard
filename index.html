@@ -15,6 +15,10 @@
             <div class="divider"></div>
             <button id="clear" title="Clear Canvas"><i class="fas fa-trash"></i></button>
             <button id="download" title="Download"><i class="fas fa-download"></i></button>
+            <button id="imageUpload" title="Upload Image" onclick="document.getElementById('fileInput').click()">
+                <i class="fas fa-image"></i>
+            </button>
+            <input type="file" id="fileInput" accept="image/*" style="display: none">
             <div class="divider"></div>
             <button id="brush" class="tool active" title="Brush"><i class="fas fa-paint-brush"></i></button>
             <button id="line" class="tool" title="Line"><i class="fas fa-minus"></i></button>
