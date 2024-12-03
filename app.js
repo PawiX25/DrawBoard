@@ -7,6 +7,7 @@ class DrawingBoard {
         this.isDrawing = false;
         this.color = '#000000';
         this.brushSize = 5;
+        this.brushSizeDisplay = document.getElementById('brushSizeDisplay');
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -29,7 +30,12 @@ class DrawingBoard {
         document.getElementById('undo').addEventListener('click', this.undo.bind(this));
         document.getElementById('redo').addEventListener('click', this.redo.bind(this));
         document.getElementById('colorPicker').addEventListener('change', (e) => this.color = e.target.value);
-        document.getElementById('brushSize').addEventListener('change', (e) => this.brushSize = e.target.value);
+        document.getElementById('brushSize').addEventListener('change', (e) => {
+            this.brushSize = e.target.value;
+            this.brushSizeDisplay.textContent = e.target.value;
+        });
+        document.getElementById('clear').addEventListener('click', this.clearCanvas.bind(this));
+        document.getElementById('download').addEventListener('click', this.downloadCanvas.bind(this));
     }
 
     startDrawing(e) {
@@ -92,6 +98,18 @@ class DrawingBoard {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.ctx.drawImage(img, 0, 0);
         };
+    }
+
+    clearCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.saveState();
+    }
+
+    downloadCanvas() {
+        const link = document.createElement('a');
+        link.download = 'drawing.png';
+        link.href = this.canvas.toDataURL();
+        link.click();
     }
 }
 

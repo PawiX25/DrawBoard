@@ -5,14 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drawing Board</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <div class="controls">
-            <button id="undo">Undo</button>
-            <button id="redo">Redo</button>
-            <input type="color" id="colorPicker" value="#000000">
+            <button id="undo" title="Undo"><i class="fas fa-undo"></i></button>
+            <button id="redo" title="Redo"><i class="fas fa-redo"></i></button>
+            <div class="divider"></div>
+            <button id="clear" title="Clear Canvas"><i class="fas fa-trash"></i></button>
+            <button id="download" title="Download"><i class="fas fa-download"></i></button>
+            <div class="divider"></div>
+            <input type="color" id="colorPicker" title="Color" value="#000000">
+            <div class="divider"></div>
+            <i class="fas fa-paint-brush"></i>
             <input type="range" id="brushSize" min="1" max="50" value="5">
+            <span id="brushSizeDisplay">5</span>
         </div>
         <canvas id="canvas"></canvas>
     </div>
