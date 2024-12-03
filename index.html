@@ -46,6 +46,13 @@
             <i class="fas fa-paint-brush"></i>
             <input type="range" id="brushSize" min="1" max="50" value="5">
             <span id="brushSizeDisplay">5</span>
+            <div class="divider"></div>
+            <div class="resize-controls">
+                <input type="number" id="canvasWidth" value="800" min="100" max="2000">
+                <span>×</span>
+                <input type="number" id="canvasHeight" value="600" min="100" max="2000">
+                <button id="resizeCanvas" title="Resize Canvas"><i class="fas fa-expand"></i></button>
+            </div>
         </div>
         <canvas id="canvas"></canvas>
     </div>

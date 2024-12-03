@@ -134,3 +134,24 @@ button {
     border: 1px solid #ccc;
     border-radius: 4px;
 }
+
+.resize-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.resize-controls input[type="number"] {
+    width: 70px;
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.resize-controls span {
+    color: #666;
+}
+
+.resize-controls button {
+    padding: 4px 8px;
+}

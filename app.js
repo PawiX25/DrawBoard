@@ -20,6 +20,8 @@ class DrawingBoard {
         this.fontSize = document.getElementById('fontSize');
         this.textControls = document.querySelector('.text-controls');
         this.fileInput = document.getElementById('fileInput');
+        this.canvasWidth = document.getElementById('canvasWidth');
+        this.canvasHeight = document.getElementById('canvasHeight');
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -28,8 +30,8 @@ class DrawingBoard {
     }
 
     initializeCanvas() {
-        this.canvas.width = 800;
-        this.canvas.height = 600;
+        this.canvas.width = this.canvasWidth.value;
+        this.canvas.height = this.canvasHeight.value;
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
     }
@@ -72,6 +74,7 @@ class DrawingBoard {
         });
         this.fileInput.addEventListener('change', this.handleImageUpload.bind(this));
         document.addEventListener('paste', this.handlePaste.bind(this));
+        document.getElementById('resizeCanvas').addEventListener('click', this.resizeCanvas.bind(this));
     }
 
     startDrawing(e) {
@@ -274,6 +277,33 @@ class DrawingBoard {
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
+    }
+
+    resizeCanvas() {
+        const newWidth = parseInt(this.canvasWidth.value);
+        const newHeight = parseInt(this.canvasHeight.value);
+        
+        if (newWidth < 100 || newHeight < 100 || 
+            newWidth > 2000 || newHeight > 2000) {
+            alert('Canvas dimensions must be between 100 and 2000 pixels');
+            return;
+        }
+
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = this.canvas.width;
+        tempCanvas.height = this.canvas.height;
+        tempCtx.drawImage(this.canvas, 0, 0);
+
+        this.canvas.width = newWidth;
+        this.canvas.height = newHeight;
+        
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+
+        this.ctx.drawImage(tempCanvas, 0, 0, newWidth, newHeight);
+        
+        this.saveState();
     }
 }
 
