@@ -14,6 +14,7 @@ class DrawingBoard {
         this.startX = 0;
         this.startY = 0;
         this.imageData = null;
+        this.fillShape = false;
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -51,6 +52,9 @@ class DrawingBoard {
         });
         document.getElementById('clear').addEventListener('click', this.clearCanvas.bind(this));
         document.getElementById('download').addEventListener('click', this.downloadCanvas.bind(this));
+        document.getElementById('fillShape').addEventListener('change', (e) => {
+            this.fillShape = e.target.checked;
+        });
 
         // Add tool selection listeners
         document.querySelectorAll('.tool').forEach(tool => {
@@ -80,6 +84,7 @@ class DrawingBoard {
         
         const [x, y] = this.getMousePos(e);
         this.ctx.strokeStyle = this.color;
+        this.ctx.fillStyle = this.color;
         this.ctx.lineWidth = this.brushSize;
 
         if (this.currentTool === 'brush') {
@@ -106,6 +111,9 @@ class DrawingBoard {
                     break;
             }
             
+            if (this.fillShape) {
+                this.ctx.fill();
+            }
             this.ctx.stroke();
         }
     }

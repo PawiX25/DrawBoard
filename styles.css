@@ -97,3 +97,14 @@ button {
 .color-swatch.active {
     border: 2px solid #000;
 }
+
+.fill-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #666;
+}
+
+.fill-option input[type="checkbox"] {
+    cursor: pointer;
+}
