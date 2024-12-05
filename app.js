@@ -29,6 +29,8 @@ class DrawingBoard {
         this.isDragging = false;
         this.dragOffset = { x: 0, y: 0 };
         this.tempShape = null;
+        this.polygonPoints = [];
+        this.isDrawingPolygon = false;
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -90,6 +92,28 @@ class DrawingBoard {
     }
 
     startDrawing(e) {
+        if (this.currentTool === 'polygon') {
+            const [x, y] = this.getMousePos(e);
+            
+            if (!this.isDrawingPolygon) {
+                this.isDrawingPolygon = true;
+                this.polygonPoints = [[x, y]];
+            } else {
+                const firstPoint = this.polygonPoints[0];
+                const distance = Math.sqrt(
+                    Math.pow(x - firstPoint[0], 2) + 
+                    Math.pow(y - firstPoint[1], 2)
+                );
+                
+                if (e.detail === 2 && distance < 20) {
+                    this.finishPolygon();
+                    return;
+                }
+                this.polygonPoints.push([x, y]);
+            }
+            this.redrawCanvas();
+            return;
+        }
         if (this.currentTool === 'select') {
             const [x, y] = this.getMousePos(e);
             this.handleSelection(x, y);
@@ -138,6 +162,32 @@ class DrawingBoard {
         }
     }
 
+    finishPolygon() {
+        if (this.polygonPoints.length >= 3) {
+            const minX = Math.min(...this.polygonPoints.map(p => p[0]));
+            const minY = Math.min(...this.polygonPoints.map(p => p[1]));
+            const maxX = Math.max(...this.polygonPoints.map(p => p[0]));
+            const maxY = Math.max(...this.polygonPoints.map(p => p[1]));
+            
+            this.objects.push({
+                type: 'polygon',
+                points: [...this.polygonPoints],
+                x: minX,
+                y: minY,
+                width: maxX - minX,
+                height: maxY - minY,
+                color: this.color,
+                size: this.brushSize,
+                fill: this.fillShape
+            });
+        }
+        
+        this.isDrawingPolygon = false;
+        this.polygonPoints = [];
+        this.redrawCanvas();
+        this.saveState();
+    }
+
     draw(e) {
         if (this.currentTool === 'select' && this.isDragging && this.selectedObject) {
             const [x, y] = this.getMousePos(e);
@@ -148,6 +198,11 @@ class DrawingBoard {
             this.selectedObject.y += dy;
             
             if (this.selectedObject.type === 'brush') {
+                this.selectedObject.points = this.selectedObject.points.map(point => [
+                    point[0] + dx,
+                    point[1] + dy
+                ]);
+            } else if (this.selectedObject.type === 'polygon') {
                 this.selectedObject.points = this.selectedObject.points.map(point => [
                     point[0] + dx,
                     point[1] + dy
@@ -419,6 +474,8 @@ class DrawingBoard {
                     obj.endX, obj.endY
                 );
                 isHit = lineDistance < 5;
+            } else if (obj.type === 'polygon') {
+                isHit = this.isPointInPolygon(x, y, obj.points);
             } else {
                 isHit = x >= obj.x && x <= obj.x + obj.width &&
                         y >= obj.y && y <= obj.y + obj.height;
@@ -470,6 +527,19 @@ class DrawingBoard {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
+    isPointInPolygon(x, y, points) {
+        let inside = false;
+        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+            const xi = points[i][0], yi = points[i][1];
+            const xj = points[j][0], yj = points[j][1];
+            
+            const intersect = ((yi > y) !== (yj > y))
+                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
     redrawCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -496,6 +566,25 @@ class DrawingBoard {
                 this.selectedObject.height + 4
             );
             this.ctx.setLineDash([]);
+        }
+        
+        if (this.isDrawingPolygon && this.polygonPoints.length > 0) {
+            this.ctx.strokeStyle = this.color;
+            this.ctx.lineWidth = this.brushSize;
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.polygonPoints[0][0], this.polygonPoints[0][1]);
+            for (let i = 1; i < this.polygonPoints.length; i++) {
+                this.ctx.lineTo(this.polygonPoints[i][0], this.polygonPoints[i][1]);
+            }
+            this.ctx.stroke();
+            
+            this.polygonPoints.forEach(point => {
+                this.ctx.beginPath();
+                this.ctx.arc(point[0], point[1], 4, 0, 2 * Math.PI);
+                this.ctx.fillStyle = this.color;
+                this.ctx.fill();
+            });
         }
     }
 
@@ -547,6 +636,19 @@ class DrawingBoard {
                 this.ctx.fillStyle = shape.color;
                 this.ctx.textBaseline = 'top';
                 this.ctx.fillText(shape.text, shape.x, shape.y);
+                break;
+                
+            case 'polygon':
+                this.ctx.beginPath();
+                this.ctx.moveTo(shape.points[0][0], shape.points[0][1]);
+                for (let i = 1; i < shape.points.length; i++) {
+                    this.ctx.lineTo(shape.points[i][0], shape.points[i][1]);
+                }
+                this.ctx.closePath();
+                if (shape.fill) {
+                    this.ctx.fill();
+                }
+                this.ctx.stroke();
                 break;
         }
     }
