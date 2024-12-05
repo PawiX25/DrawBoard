@@ -22,6 +22,10 @@ class DrawingBoard {
         this.fileInput = document.getElementById('fileInput');
         this.canvasWidth = document.getElementById('canvasWidth');
         this.canvasHeight = document.getElementById('canvasHeight');
+        this.objects = [];
+        this.selectedObject = null;
+        this.isDragging = false;
+        this.dragOffset = { x: 0, y: 0 };
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -78,6 +82,11 @@ class DrawingBoard {
     }
 
     startDrawing(e) {
+        if (this.currentTool === 'select') {
+            const [x, y] = this.getMousePos(e);
+            this.handleSelection(x, y);
+            return;
+        }
         if (this.currentTool === 'text') {
             const [x, y] = this.getMousePos(e);
             const text = this.textInput.value.trim();
@@ -102,6 +111,13 @@ class DrawingBoard {
     }
 
     draw(e) {
+        if (this.currentTool === 'select' && this.isDragging && this.selectedObject) {
+            const [x, y] = this.getMousePos(e);
+            this.selectedObject.x = x - this.dragOffset.x;
+            this.selectedObject.y = y - this.dragOffset.y;
+            this.redrawCanvas();
+            return;
+        }
         if (this.currentTool === 'text') return;
         if (!this.isDrawing) return;
         
@@ -142,6 +158,10 @@ class DrawingBoard {
     }
 
     stopDrawing() {
+        if (this.isDragging) {
+            this.isDragging = false;
+            this.saveState();
+        }
         if (this.isDrawing) {
             this.isDrawing = false;
             this.saveState();
@@ -259,19 +279,25 @@ class DrawingBoard {
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                const x = (this.canvas.width - img.width) / 2;
-                const y = (this.canvas.height - img.height) / 2;
-                
                 const scale = Math.min(
                     this.canvas.width / img.width,
                     this.canvas.height / img.height
                 );
                 const width = img.width * scale;
                 const height = img.height * scale;
-                const centerX = (this.canvas.width - width) / 2;
-                const centerY = (this.canvas.height - height) / 2;
+                const x = (this.canvas.width - width) / 2;
+                const y = (this.canvas.height - height) / 2;
                 
-                this.ctx.drawImage(img, centerX, centerY, width, height);
+                this.objects.push({
+                    type: 'image',
+                    img: img,
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height
+                });
+                
+                this.redrawCanvas();
                 this.saveState();
             };
             img.src = e.target.result;
@@ -304,6 +330,47 @@ class DrawingBoard {
         this.ctx.drawImage(tempCanvas, 0, 0, newWidth, newHeight);
         
         this.saveState();
+    }
+
+    handleSelection(x, y) {
+        for (let i = this.objects.length - 1; i >= 0; i--) {
+            const obj = this.objects[i];
+            if (x >= obj.x && x <= obj.x + obj.width &&
+                y >= obj.y && y <= obj.y + obj.height) {
+                this.selectedObject = obj;
+                this.isDragging = true;
+                this.dragOffset.x = x - obj.x;
+                this.dragOffset.y = y - obj.y;
+                this.redrawCanvas();
+                return;
+            }
+        }
+        this.selectedObject = null;
+        this.isDragging = false;
+        this.redrawCanvas();
+    }
+
+    redrawCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        for (const obj of this.objects) {
+            if (obj.type === 'image') {
+                this.ctx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height);
+            }
+        }
+
+        if (this.selectedObject) {
+            this.ctx.strokeStyle = '#00ff00';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.strokeRect(
+                this.selectedObject.x - 2,
+                this.selectedObject.y - 2,
+                this.selectedObject.width + 4,
+                this.selectedObject.height + 4
+            );
+            this.ctx.setLineDash([]);
+        }
     }
 }
 

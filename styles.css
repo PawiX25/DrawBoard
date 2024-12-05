@@ -68,6 +68,11 @@
 
 canvas {
     border: 1px solid #ddd;
+    cursor: crosshair;
+}
+
+canvas.select-mode {
+    cursor: default;
 }
 
 button {
