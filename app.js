@@ -128,8 +128,27 @@ class DrawingBoard {
     draw(e) {
         if (this.currentTool === 'select' && this.isDragging && this.selectedObject) {
             const [x, y] = this.getMousePos(e);
-            this.selectedObject.x = x - this.dragOffset.x;
-            this.selectedObject.y = y - this.dragOffset.y;
+            const dx = x - this.dragOffset.x - this.selectedObject.x;
+            const dy = y - this.dragOffset.y - this.selectedObject.y;
+            
+            this.selectedObject.x += dx;
+            this.selectedObject.y += dy;
+            
+            if (this.selectedObject.type === 'brush') {
+                this.selectedObject.points = this.selectedObject.points.map(point => [
+                    point[0] + dx,
+                    point[1] + dy
+                ]);
+            } else if (this.selectedObject.type !== 'image' && this.selectedObject.type !== 'text') {
+                this.selectedObject.startX += dx;
+                this.selectedObject.startY += dy;
+                this.selectedObject.endX += dx;
+                this.selectedObject.endY += dy;
+            }
+            
+            this.dragOffset.x = x - this.selectedObject.x;
+            this.dragOffset.y = y - this.selectedObject.y;
+            
             this.redrawCanvas();
             return;
         }
@@ -347,8 +366,31 @@ class DrawingBoard {
     handleSelection(x, y) {
         for (let i = this.objects.length - 1; i >= 0; i--) {
             const obj = this.objects[i];
-            if (x >= obj.x && x <= obj.x + obj.width &&
-                y >= obj.y && y <= obj.y + obj.height) {
+            let isHit = false;
+
+            if (obj.type === 'circle') {
+                const radius = Math.sqrt(
+                    Math.pow(obj.endX - obj.startX, 2) + 
+                    Math.pow(obj.endY - obj.startY, 2)
+                );
+                const distance = Math.sqrt(
+                    Math.pow(x - obj.startX, 2) + 
+                    Math.pow(y - obj.startY, 2)
+                );
+                isHit = distance <= radius;
+            } else if (obj.type === 'line') {
+                const lineDistance = this.pointToLineDistance(
+                    x, y,
+                    obj.startX, obj.startY,
+                    obj.endX, obj.endY
+                );
+                isHit = lineDistance < 5;
+            } else {
+                isHit = x >= obj.x && x <= obj.x + obj.width &&
+                        y >= obj.y && y <= obj.y + obj.height;
+            }
+
+            if (isHit) {
                 this.selectedObject = obj;
                 this.isDragging = true;
                 this.dragOffset.x = x - obj.x;
@@ -360,6 +402,38 @@ class DrawingBoard {
         this.selectedObject = null;
         this.isDragging = false;
         this.redrawCanvas();
+    }
+
+    pointToLineDistance(x, y, x1, y1, x2, y2) {
+        const A = x - x1;
+        const B = y - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+
+        if (lenSq !== 0) {
+            param = dot / lenSq;
+        }
+
+        let xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        const dx = x - xx;
+        const dy = y - yy;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     redrawCanvas() {
@@ -400,10 +474,12 @@ class DrawingBoard {
 
         switch (shape.type) {
             case 'brush':
-                this.ctx.moveTo(shape.points[0][0], shape.points[0][1]);
-                shape.points.forEach(point => {
-                    this.ctx.lineTo(point[0], point[1]);
-                });
+                if (shape.points && shape.points.length > 0) {
+                    this.ctx.moveTo(shape.points[0][0], shape.points[0][1]);
+                    shape.points.forEach(point => {
+                        this.ctx.lineTo(point[0], point[1]);
+                    });
+                }
                 this.ctx.stroke();
                 break;
 
@@ -421,13 +497,11 @@ class DrawingBoard {
                 break;
 
             case 'circle':
-                const centerX = shape.startX;
-                const centerY = shape.startY;
                 const radius = Math.sqrt(
                     Math.pow(shape.endX - shape.startX, 2) + 
                     Math.pow(shape.endY - shape.startY, 2)
                 );
-                this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                this.ctx.arc(shape.startX, shape.startY, radius, 0, 2 * Math.PI);
                 if (shape.fill) {
                     this.ctx.fill();
                 }
