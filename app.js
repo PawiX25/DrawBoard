@@ -26,6 +26,7 @@ class DrawingBoard {
         this.selectedObject = null;
         this.isDragging = false;
         this.dragOffset = { x: 0, y: 0 };
+        this.tempShape = null;
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -87,26 +88,40 @@ class DrawingBoard {
             this.handleSelection(x, y);
             return;
         }
+        
+        this.isDrawing = true;
+        [this.startX, this.startY] = this.getMousePos(e);
+
         if (this.currentTool === 'text') {
-            const [x, y] = this.getMousePos(e);
             const text = this.textInput.value.trim();
             if (text) {
-                this.ctx.font = `${this.fontSize.value}px ${this.fontSelect.value}`;
-                this.ctx.fillStyle = this.color;
-                this.ctx.fillText(text, x, y);
+                this.objects.push({
+                    type: 'text',
+                    text: text,
+                    x: this.startX,
+                    y: this.startY,
+                    font: `${this.fontSize.value}px ${this.fontSelect.value}`,
+                    color: this.color,
+                    width: this.ctx.measureText(text).width,
+                    height: parseInt(this.fontSize.value)
+                });
+                this.redrawCanvas();
                 this.saveState();
             }
             return;
         }
-        this.isDrawing = true;
-        [this.startX, this.startY] = this.getMousePos(e);
 
         if (this.currentTool === 'brush') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(this.startX, this.startY);
-        } else {
-            // Save the canvas state before drawing shapes
-            this.imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            this.tempShape = {
+                type: 'brush',
+                color: this.color,
+                size: this.brushSize,
+                points: [[this.startX, this.startY]],
+                x: this.startX,
+                y: this.startY,
+                width: 0,
+                height: 0
+            };
         }
     }
 
@@ -118,43 +133,36 @@ class DrawingBoard {
             this.redrawCanvas();
             return;
         }
-        if (this.currentTool === 'text') return;
-        if (!this.isDrawing) return;
-        
+
+        if (!this.isDrawing || this.currentTool === 'text') return;
+
         const [x, y] = this.getMousePos(e);
-        this.ctx.strokeStyle = this.color;
-        this.ctx.fillStyle = this.color;
-        this.ctx.lineWidth = this.brushSize;
 
         if (this.currentTool === 'brush') {
-            this.ctx.lineTo(x, y);
-            this.ctx.stroke();
+            this.tempShape.points.push([x, y]);
+            this.tempShape.x = Math.min(this.tempShape.x, x);
+            this.tempShape.y = Math.min(this.tempShape.y, y);
+            this.tempShape.width = Math.max(...this.tempShape.points.map(p => p[0])) - this.tempShape.x;
+            this.tempShape.height = Math.max(...this.tempShape.points.map(p => p[1])) - this.tempShape.y;
         } else {
-            // Restore the previous state before drawing the new shape
-            this.ctx.putImageData(this.imageData, 0, 0);
-            this.ctx.beginPath();
-
-            switch (this.currentTool) {
-                case 'line':
-                    this.ctx.moveTo(this.startX, this.startY);
-                    this.ctx.lineTo(x, y);
-                    break;
-                case 'rectangle':
-                    const width = x - this.startX;
-                    const height = y - this.startY;
-                    this.ctx.rect(this.startX, this.startY, width, height);
-                    break;
-                case 'circle':
-                    const radius = Math.sqrt(Math.pow(x - this.startX, 2) + Math.pow(y - this.startY, 2));
-                    this.ctx.arc(this.startX, this.startY, radius, 0, 2 * Math.PI);
-                    break;
-            }
-            
-            if (this.fillShape) {
-                this.ctx.fill();
-            }
-            this.ctx.stroke();
+            this.tempShape = {
+                type: this.currentTool,
+                x: Math.min(this.startX, x),
+                y: Math.min(this.startY, y),
+                width: Math.abs(x - this.startX),
+                height: Math.abs(y - this.startY),
+                startX: this.startX,
+                startY: this.startY,
+                endX: x,
+                endY: y,
+                color: this.color,
+                size: this.brushSize,
+                fill: this.fillShape
+            };
         }
+
+        this.redrawCanvas();
+        this.drawShape(this.tempShape);
     }
 
     stopDrawing() {
@@ -164,6 +172,10 @@ class DrawingBoard {
         }
         if (this.isDrawing) {
             this.isDrawing = false;
+            if (this.tempShape) {
+                this.objects.push(this.tempShape);
+                this.tempShape = null;
+            }
             this.saveState();
         }
     }
@@ -356,7 +368,13 @@ class DrawingBoard {
         for (const obj of this.objects) {
             if (obj.type === 'image') {
                 this.ctx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height);
+            } else {
+                this.drawShape(obj);
             }
+        }
+
+        if (this.tempShape) {
+            this.drawShape(this.tempShape);
         }
 
         if (this.selectedObject) {
@@ -370,6 +388,57 @@ class DrawingBoard {
                 this.selectedObject.height + 4
             );
             this.ctx.setLineDash([]);
+        }
+    }
+
+    drawShape(shape) {
+        this.ctx.strokeStyle = shape.color;
+        this.ctx.fillStyle = shape.color;
+        this.ctx.lineWidth = shape.size;
+
+        this.ctx.beginPath();
+
+        switch (shape.type) {
+            case 'brush':
+                this.ctx.moveTo(shape.points[0][0], shape.points[0][1]);
+                shape.points.forEach(point => {
+                    this.ctx.lineTo(point[0], point[1]);
+                });
+                this.ctx.stroke();
+                break;
+
+            case 'line':
+                this.ctx.moveTo(shape.startX, shape.startY);
+                this.ctx.lineTo(shape.endX, shape.endY);
+                this.ctx.stroke();
+                break;
+
+            case 'rectangle':
+                if (shape.fill) {
+                    this.ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+                }
+                this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                break;
+
+            case 'circle':
+                const centerX = shape.startX;
+                const centerY = shape.startY;
+                const radius = Math.sqrt(
+                    Math.pow(shape.endX - shape.startX, 2) + 
+                    Math.pow(shape.endY - shape.startY, 2)
+                );
+                this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                if (shape.fill) {
+                    this.ctx.fill();
+                }
+                this.ctx.stroke();
+                break;
+
+            case 'text':
+                this.ctx.font = shape.font;
+                this.ctx.fillStyle = shape.color;
+                this.ctx.fillText(shape.text, shape.x, shape.y);
+                break;
         }
     }
 }
