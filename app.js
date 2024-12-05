@@ -31,11 +31,13 @@ class DrawingBoard {
         this.tempShape = null;
         this.polygonPoints = [];
         this.isDrawingPolygon = false;
+        this.clipboardObject = null;
 
         this.initializeCanvas();
         this.setupEventListeners();
         this.updateColorHistory('#000000');
         this.saveState();
+        document.addEventListener('keydown', this.handleKeyboard.bind(this));
     }
 
     initializeCanvas() {
@@ -650,6 +652,109 @@ class DrawingBoard {
                 }
                 this.ctx.stroke();
                 break;
+        }
+    }
+
+    handleKeyboard(e) {
+        if (e.target.tagName === 'INPUT') return;
+
+        const toolMap = {
+            '1': 'brush',
+            '2': 'line',
+            '3': 'rectangle',
+            '4': 'circle',
+            '5': 'polygon',
+            '6': 'select',
+            '7': 'text'
+        };
+
+        if (toolMap[e.key]) {
+            e.preventDefault();
+            const toolButton = document.getElementById(toolMap[e.key]);
+            if (toolButton) {
+                document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+                toolButton.classList.add('active');
+                this.currentTool = toolMap[e.key];
+                this.updateToolUI();
+            }
+            return;
+        }
+
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.key.toLowerCase()) {
+                case 'z':
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        this.redo();
+                    } else {
+                        this.undo();
+                    }
+                    break;
+                case 'y':
+                    e.preventDefault();
+                    this.redo();
+                    break;
+                case 's':
+                    e.preventDefault();
+                    this.downloadCanvas();
+                    break;
+                case 'c':
+                    if (this.selectedObject) {
+                        e.preventDefault();
+                        this.clipboardObject = JSON.parse(JSON.stringify(this.selectedObject));
+                    }
+                    break;
+                case 'v':
+                    if (this.clipboardObject) {
+                        e.preventDefault();
+                        const newObject = JSON.parse(JSON.stringify(this.clipboardObject));
+                        newObject.x += 10;
+                        newObject.y += 10;
+                        if (newObject.startX) {
+                            newObject.startX += 10;
+                            newObject.endX += 10;
+                            newObject.startY += 10;
+                            newObject.endY += 10;
+                        }
+                        if (newObject.points) {
+                            newObject.points = newObject.points.map(point => [
+                                point[0] + 10,
+                                point[1] + 10
+                            ]);
+                        }
+                        this.objects.push(newObject);
+                        this.redrawCanvas();
+                        this.saveState();
+                    }
+                    break;
+            }
+        } else {
+            switch (e.key) {
+                case 'Delete':
+                case 'Backspace':
+                    if (this.selectedObject) {
+                        e.preventDefault();
+                        const index = this.objects.indexOf(this.selectedObject);
+                        if (index > -1) {
+                            this.objects.splice(index, 1);
+                            this.selectedObject = null;
+                            this.redrawCanvas();
+                            this.saveState();
+                        }
+                    }
+                    break;
+                case 'Escape':
+                    if (this.selectedObject || this.isDrawingPolygon) {
+                        e.preventDefault();
+                        this.selectedObject = null;
+                        if (this.isDrawingPolygon) {
+                            this.isDrawingPolygon = false;
+                            this.polygonPoints = [];
+                        }
+                        this.redrawCanvas();
+                    }
+                    break;
+            }
         }
     }
 }
