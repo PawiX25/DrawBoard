@@ -32,6 +32,7 @@ class DrawingBoard {
         this.polygonPoints = [];
         this.isDrawingPolygon = false;
         this.clipboardObject = null;
+        this.importInput = document.getElementById('importInput');
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -86,6 +87,8 @@ class DrawingBoard {
         this.fileInput.addEventListener('change', this.handleImageUpload.bind(this));
         document.addEventListener('paste', this.handlePaste.bind(this));
         document.getElementById('resizeCanvas').addEventListener('click', this.resizeCanvas.bind(this));
+        document.getElementById('export').addEventListener('click', this.exportDrawing.bind(this));
+        this.importInput.addEventListener('change', this.importDrawing.bind(this));
     }
 
     updateToolUI() {
@@ -727,6 +730,14 @@ class DrawingBoard {
                         this.saveState();
                     }
                     break;
+                case 'e':
+                    e.preventDefault();
+                    this.exportDrawing();
+                    break;
+                case 'i':
+                    e.preventDefault();
+                    this.importInput.click();
+                    break;
             }
         } else {
             switch (e.key) {
@@ -756,6 +767,80 @@ class DrawingBoard {
                     break;
             }
         }
+    }
+
+    async exportDrawing() {
+        const exportData = {
+            objects: await Promise.all(this.objects.map(async obj => {
+                if (obj.type === 'image') {
+                    return {
+                        ...obj,
+                        img: await this.imageToBase64(obj.img)
+                    };
+                }
+                return obj;
+            })),
+            width: this.canvas.width,
+            height: this.canvas.height
+        };
+
+        const blob = new Blob([JSON.stringify(exportData)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'drawing.json';
+        link.click();
+        URL.revokeObjectURL(url);
+    }
+
+    async importDrawing(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            if (data.width && data.height) {
+                this.canvas.width = data.width;
+                this.canvas.height = data.height;
+                this.canvasWidth.value = data.width;
+                this.canvasHeight.value = data.height;
+            }
+
+            this.objects = await Promise.all(data.objects.map(async obj => {
+                if (obj.type === 'image' && typeof obj.img === 'string') {
+                    const img = new Image();
+                    await new Promise((resolve) => {
+                        img.onload = resolve;
+                        img.src = obj.img;
+                    });
+                    return {
+                        ...obj,
+                        img: img
+                    };
+                }
+                return obj;
+            }));
+
+            this.redrawCanvas();
+            this.saveState();
+            this.importInput.value = '';
+        } catch (error) {
+            console.error('Error importing drawing:', error);
+            alert('Error importing drawing. Please make sure the file is valid.');
+        }
+    }
+
+    imageToBase64(img) {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL());
+        });
     }
 }
 
