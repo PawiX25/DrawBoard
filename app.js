@@ -19,6 +19,8 @@ class DrawingBoard {
         this.fontSelect = document.getElementById('fontSelect');
         this.fontSize = document.getElementById('fontSize');
         this.textControls = document.querySelector('.text-controls');
+        this.circleControls = document.querySelector('.circle-controls');
+        this.circleLineWidth = document.getElementById('circleLineWidth');
         this.fileInput = document.getElementById('fileInput');
         this.canvasWidth = document.getElementById('canvasWidth');
         this.canvasHeight = document.getElementById('canvasHeight');
@@ -74,12 +76,17 @@ class DrawingBoard {
                 document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
                 e.target.closest('.tool').classList.add('active');
                 this.currentTool = e.target.closest('.tool').id;
-                this.textControls.style.display = this.currentTool === 'text' ? 'flex' : 'none';
+                this.updateToolUI();
             });
         });
         this.fileInput.addEventListener('change', this.handleImageUpload.bind(this));
         document.addEventListener('paste', this.handlePaste.bind(this));
         document.getElementById('resizeCanvas').addEventListener('click', this.resizeCanvas.bind(this));
+    }
+
+    updateToolUI() {
+        this.textControls.style.display = this.currentTool === 'text' ? 'flex' : 'none';
+        this.circleControls.style.display = this.currentTool === 'circle' ? 'flex' : 'none';
     }
 
     startDrawing(e) {
@@ -95,15 +102,21 @@ class DrawingBoard {
         if (this.currentTool === 'text') {
             const text = this.textInput.value.trim();
             if (text) {
+                const fontFamily = this.fontSelect.value;
+                const fontSize = parseInt(this.fontSize.value, 10);
+                const font = `${fontSize}px ${fontFamily}`;
+                this.ctx.font = font;
+                const textWidth = this.ctx.measureText(text).width;
+
                 this.objects.push({
                     type: 'text',
                     text: text,
                     x: this.startX,
-                    y: this.startY,
-                    font: `${this.fontSize.value}px ${this.fontSelect.value}`,
+                    y: this.startY - fontSize,
+                    font: font,
                     color: this.color,
-                    width: this.ctx.measureText(text).width,
-                    height: parseInt(this.fontSize.value)
+                    width: textWidth,
+                    height: fontSize
                 });
                 this.redrawCanvas();
                 this.saveState();
@@ -163,7 +176,28 @@ class DrawingBoard {
             this.tempShape.y = Math.min(this.tempShape.y, y);
             this.tempShape.width = Math.max(...this.tempShape.points.map(p => p[0])) - this.tempShape.x;
             this.tempShape.height = Math.max(...this.tempShape.points.map(p => p[1])) - this.tempShape.y;
+        } else if (this.currentTool === 'circle') {
+            const centerX = this.startX;
+            const centerY = this.startY;
+            const radius = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+            const size = parseInt(this.brushSize, 10);
+            this.tempShape = {
+                type: 'circle',
+                startX: centerX,
+                startY: centerY,
+                endX: x,
+                endY: y,
+                x: centerX - radius,
+                y: centerY - radius,
+                width: 2 * radius,
+                height: 2 * radius,
+                color: this.color,
+                size: size,
+                fill: this.fillShape
+            };
         } else {
+            const size = this.currentTool === 'circle' ? parseInt(this.circleLineWidth.value, 10) : this.brushSize;
+
             this.tempShape = {
                 type: this.currentTool,
                 x: Math.min(this.startX, x),
@@ -175,7 +209,7 @@ class DrawingBoard {
                 endX: x,
                 endY: y,
                 color: this.color,
-                size: this.brushSize,
+                size: size,
                 fill: this.fillShape
             };
         }
@@ -511,6 +545,7 @@ class DrawingBoard {
             case 'text':
                 this.ctx.font = shape.font;
                 this.ctx.fillStyle = shape.color;
+                this.ctx.textBaseline = 'top';
                 this.ctx.fillText(shape.text, shape.x, shape.y);
                 break;
         }
