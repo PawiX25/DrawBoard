@@ -75,6 +75,38 @@ canvas.select-mode {
     cursor: default;
 }
 
+canvas.resize-nw {
+    cursor: nw-resize;
+}
+
+canvas.resize-ne {
+    cursor: ne-resize;
+}
+
+canvas.resize-sw {
+    cursor: sw-resize;
+}
+
+canvas.resize-se {
+    cursor: se-resize;
+}
+
+canvas.resize-n {
+    cursor: n-resize;
+}
+
+canvas.resize-e {
+    cursor: e-resize;
+}
+
+canvas.resize-s {
+    cursor: s-resize;
+}
+
+canvas.resize-w {
+    cursor: w-resize;
+}
+
 button {
     padding: 8px 16px;
     cursor: pointer;

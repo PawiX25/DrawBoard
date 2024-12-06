@@ -36,6 +36,8 @@ class DrawingBoard {
         this.isDrawingPolygon = false;
         this.clipboardObject = null;
         this.importInput = document.getElementById('importInput');
+        this.resizeHandle = null;
+        this.resizing = false;
 
         this.initializeCanvas();
         this.setupEventListeners();
@@ -92,6 +94,27 @@ class DrawingBoard {
         document.getElementById('resizeCanvas').addEventListener('click', this.resizeCanvas.bind(this));
         document.getElementById('export').addEventListener('click', this.exportDrawing.bind(this));
         this.importInput.addEventListener('change', this.importDrawing.bind(this));
+
+        this.canvas.addEventListener('mousemove', (e) => {
+            if (!this.selectedObject || this.isDrawing || this.isDragging) return;
+            
+            const [x, y] = this.getMousePos(e);
+            const handles = this.getResizeHandles(this.selectedObject);
+            let found = false;
+            
+            for (const handle of handles) {
+                if (x >= handle.x && x <= handle.x + 8 &&
+                    y >= handle.y && y <= handle.y + 8) {
+                    this.canvas.style.cursor = handle.cursor;
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                this.canvas.style.cursor = this.currentTool === 'select' ? 'default' : 'crosshair';
+            }
+        });
     }
 
     updateToolUI() {
@@ -197,7 +220,108 @@ class DrawingBoard {
     }
 
     draw(e) {
-        if (this.currentTool === 'select' && this.isDragging && this.selectedObject) {
+        if (!this.isDrawing && !this.isDragging && !this.resizing) return;
+        
+        const [x, y] = this.getMousePos(e);
+
+        if (this.resizing && this.selectedObject && this.resizeHandle) {
+            const dx = x - this.startX;
+            const dy = y - this.startY;
+            const obj = this.selectedObject;
+            
+            const originalWidth = obj.width;
+            const originalHeight = obj.height;
+            const originalX = obj.x;
+            const originalY = obj.y;
+
+            switch (this.resizeHandle.position) {
+                case 'nw':
+                    obj.width -= dx;
+                    obj.height -= dy;
+                    obj.x += dx;
+                    obj.y += dy;
+                    break;
+                case 'ne':
+                    obj.width += dx;
+                    obj.height -= dy;
+                    obj.y += dy;
+                    break;
+                case 'sw':
+                    obj.width -= dx;
+                    obj.height += dy;
+                    obj.x += dx;
+                    break;
+                case 'se':
+                    obj.width += dx;
+                    obj.height += dy;
+                    break;
+                case 'n':
+                    obj.height -= dy;
+                    obj.y += dy;
+                    break;
+                case 'e':
+                    obj.width += dx;
+                    break;
+                case 's':
+                    obj.height += dy;
+                    break;
+                case 'w':
+                    obj.width -= dx;
+                    obj.x += dx;
+                    break;
+            }
+
+            const scaleX = obj.width / originalWidth;
+            const scaleY = obj.height / originalHeight;
+
+            if (obj.type === 'circle') {
+                const centerX = obj.startX;
+                const centerY = obj.startY;
+                obj.startX = obj.x + obj.width / 2;
+                obj.startY = obj.y + obj.height / 2;
+                obj.endX = obj.startX + (obj.endX - centerX) * scaleX;
+                obj.endY = obj.startY + (obj.endY - centerY) * scaleY;
+            } else if (obj.type === 'line') {
+                if (this.resizeHandle.position.includes('w')) {
+                    obj.startX = obj.x;
+                }
+                if (this.resizeHandle.position.includes('e')) {
+                    obj.endX = obj.x + obj.width;
+                }
+                if (this.resizeHandle.position.includes('n')) {
+                    obj.startY = obj.y;
+                }
+                if (this.resizeHandle.position.includes('s')) {
+                    obj.endY = obj.y + obj.height;
+                }
+            } else if (obj.type === 'polygon') {
+                obj.points = obj.points.map(point => [
+                    obj.x + (point[0] - originalX) * scaleX,
+                    obj.y + (point[1] - originalY) * scaleY
+                ]);
+            } else if (obj.type === 'brush') {
+                obj.points = obj.points.map(point => [
+                    obj.x + (point[0] - originalX) * scaleX,
+                    obj.y + (point[1] - originalY) * scaleY
+                ]);
+            }
+
+            if (obj.width < 10) {
+                obj.width = 10;
+                obj.x = originalX;
+            }
+            if (obj.height < 10) {
+                obj.height = 10;
+                obj.y = originalY;
+            }
+
+            this.startX = x;
+            this.startY = y;
+            this.redrawCanvas();
+            return;
+        }
+
+        if (this.isDragging && this.selectedObject && !this.resizing) {
             const [x, y] = this.getMousePos(e);
             const dx = x - this.dragOffset.x - this.selectedObject.x;
             const dy = y - this.dragOffset.y - this.selectedObject.y;
@@ -229,59 +353,66 @@ class DrawingBoard {
             return;
         }
 
-        if (!this.isDrawing || this.currentTool === 'text') return;
+        if (this.isDrawing && !this.resizing) {
+            const [x, y] = this.getMousePos(e);
 
-        const [x, y] = this.getMousePos(e);
+            if (this.currentTool === 'brush') {
+                this.tempShape.points.push([x, y]);
+                this.tempShape.x = Math.min(this.tempShape.x, x);
+                this.tempShape.y = Math.min(this.tempShape.y, y);
+                this.tempShape.width = Math.max(...this.tempShape.points.map(p => p[0])) - this.tempShape.x;
+                this.tempShape.height = Math.max(...this.tempShape.points.map(p => p[1])) - this.tempShape.y;
+            } else if (this.currentTool === 'circle') {
+                const centerX = this.startX;
+                const centerY = this.startY;
+                const radius = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                const size = parseInt(this.brushSize, 10);
+                this.tempShape = {
+                    type: 'circle',
+                    startX: centerX,
+                    startY: centerY,
+                    endX: x,
+                    endY: y,
+                    x: centerX - radius,
+                    y: centerY - radius,
+                    width: 2 * radius,
+                    height: 2 * radius,
+                    color: this.color,
+                    size: size,
+                    fill: this.fillShape
+                };
+            } else {
+                const size = this.currentTool === 'circle' ? parseInt(this.circleLineWidth.value, 10) : this.brushSize;
 
-        if (this.currentTool === 'brush') {
-            this.tempShape.points.push([x, y]);
-            this.tempShape.x = Math.min(this.tempShape.x, x);
-            this.tempShape.y = Math.min(this.tempShape.y, y);
-            this.tempShape.width = Math.max(...this.tempShape.points.map(p => p[0])) - this.tempShape.x;
-            this.tempShape.height = Math.max(...this.tempShape.points.map(p => p[1])) - this.tempShape.y;
-        } else if (this.currentTool === 'circle') {
-            const centerX = this.startX;
-            const centerY = this.startY;
-            const radius = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
-            const size = parseInt(this.brushSize, 10);
-            this.tempShape = {
-                type: 'circle',
-                startX: centerX,
-                startY: centerY,
-                endX: x,
-                endY: y,
-                x: centerX - radius,
-                y: centerY - radius,
-                width: 2 * radius,
-                height: 2 * radius,
-                color: this.color,
-                size: size,
-                fill: this.fillShape
-            };
-        } else {
-            const size = this.currentTool === 'circle' ? parseInt(this.circleLineWidth.value, 10) : this.brushSize;
+                this.tempShape = {
+                    type: this.currentTool,
+                    x: Math.min(this.startX, x),
+                    y: Math.min(this.startY, y),
+                    width: Math.abs(x - this.startX),
+                    height: Math.abs(y - this.startY),
+                    startX: this.startX,
+                    startY: this.startY,
+                    endX: x,
+                    endY: y,
+                    color: this.color,
+                    size: size,
+                    fill: this.fillShape
+                };
+            }
 
-            this.tempShape = {
-                type: this.currentTool,
-                x: Math.min(this.startX, x),
-                y: Math.min(this.startY, y),
-                width: Math.abs(x - this.startX),
-                height: Math.abs(y - this.startY),
-                startX: this.startX,
-                startY: this.startY,
-                endX: x,
-                endY: y,
-                color: this.color,
-                size: size,
-                fill: this.fillShape
-            };
+            this.redrawCanvas();
+            this.drawShape(this.tempShape);
         }
-
-        this.redrawCanvas();
-        this.drawShape(this.tempShape);
     }
 
     stopDrawing() {
+        if (this.resizing) {
+            this.resizing = false;
+            this.resizeHandle = null;
+            this.canvas.style.cursor = 'default';
+            this.saveState();
+        }
+        
         if (this.isDragging) {
             this.isDragging = false;
             this.saveState();
@@ -471,6 +602,21 @@ class DrawingBoard {
     }
 
     handleSelection(x, y) {
+        if (this.selectedObject) {
+            const handles = this.getResizeHandles(this.selectedObject);
+            for (const handle of handles) {
+                if (x >= handle.x && x <= handle.x + 8 &&
+                    y >= handle.y && y <= handle.y + 8) {
+                    this.resizeHandle = handle;
+                    this.resizing = true;
+                    this.startX = x;
+                    this.startY = y;
+                    this.canvas.style.cursor = handle.cursor;
+                    return;
+                }
+            }
+        }
+
         for (let i = this.objects.length - 1; i >= 0; i--) {
             const obj = this.objects[i];
             let isHit = false;
@@ -485,6 +631,13 @@ class DrawingBoard {
                     Math.pow(y - obj.startY, 2)
                 );
                 isHit = distance <= radius;
+                
+                if (isHit && !obj.width) {
+                    obj.x = obj.startX - radius;
+                    obj.y = obj.startY - radius;
+                    obj.width = radius * 2;
+                    obj.height = radius * 2;
+                }
             } else if (obj.type === 'line') {
                 const lineDistance = this.pointToLineDistance(
                     x, y,
@@ -492,8 +645,24 @@ class DrawingBoard {
                     obj.endX, obj.endY
                 );
                 isHit = lineDistance < 5;
+                
+                if (isHit) {
+                    obj.x = Math.min(obj.startX, obj.endX);
+                    obj.y = Math.min(obj.startY, obj.endY);
+                    obj.width = Math.abs(obj.endX - obj.startX);
+                    obj.height = Math.abs(obj.endY - obj.startY);
+                }
             } else if (obj.type === 'polygon') {
                 isHit = this.isPointInPolygon(x, y, obj.points);
+                
+                if (isHit) {
+                    const xs = obj.points.map(p => p[0]);
+                    const ys = obj.points.map(p => p[1]);
+                    obj.x = Math.min(...xs);
+                    obj.y = Math.min(...ys);
+                    obj.width = Math.max(...xs) - obj.x;
+                    obj.height = Math.max(...ys) - obj.y;
+                }
             } else {
                 isHit = x >= obj.x && x <= obj.x + obj.width &&
                         y >= obj.y && y <= obj.y + obj.height;
@@ -558,6 +727,64 @@ class DrawingBoard {
         return inside;
     }
 
+    getResizeHandles(obj) {
+        const handles = [];
+        const handleSize = 8;
+        const half = handleSize / 2;
+
+        handles.push({
+            x: obj.x - half,
+            y: obj.y - half,
+            cursor: 'nw-resize',
+            position: 'nw'
+        });
+        handles.push({
+            x: obj.x + obj.width - half,
+            y: obj.y - half,
+            cursor: 'ne-resize',
+            position: 'ne'
+        });
+        handles.push({
+            x: obj.x - half,
+            y: obj.y + obj.height - half,
+            cursor: 'sw-resize',
+            position: 'sw'
+        });
+        handles.push({
+            x: obj.x + obj.width - half,
+            y: obj.y + obj.height - half,
+            cursor: 'se-resize',
+            position: 'se'
+        });
+
+        handles.push({
+            x: obj.x + obj.width / 2 - half,
+            y: obj.y - half,
+            cursor: 'n-resize',
+            position: 'n'
+        });
+        handles.push({
+            x: obj.x + obj.width - half,
+            y: obj.y + obj.height / 2 - half,
+            cursor: 'e-resize',
+            position: 'e'
+        });
+        handles.push({
+            x: obj.x + obj.width / 2 - half,
+            y: obj.y + obj.height - half,
+            cursor: 's-resize',
+            position: 's'
+        });
+        handles.push({
+            x: obj.x - half,
+            y: obj.y + obj.height / 2 - half,
+            cursor: 'w-resize',
+            position: 'w'
+        });
+
+        return handles;
+    }
+
     redrawCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -575,15 +802,27 @@ class DrawingBoard {
 
         if (this.selectedObject) {
             this.ctx.strokeStyle = '#00ff00';
-            this.ctx.lineWidth = 2;
+            this.ctx.lineWidth = 1;
             this.ctx.setLineDash([5, 5]);
             this.ctx.strokeRect(
-                this.selectedObject.x - 2,
-                this.selectedObject.y - 2,
-                this.selectedObject.width + 4,
-                this.selectedObject.height + 4
+                this.selectedObject.x,
+                this.selectedObject.y,
+                this.selectedObject.width,
+                this.selectedObject.height
             );
             this.ctx.setLineDash([]);
+
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.strokeStyle = '#00ff00';
+            this.ctx.lineWidth = 1;
+
+            const handles = this.getResizeHandles(this.selectedObject);
+            handles.forEach(handle => {
+                this.ctx.beginPath();
+                this.ctx.rect(handle.x, handle.y, 8, 8);
+                this.ctx.fill();
+                this.ctx.stroke();
+            });
         }
         
         if (this.isDrawingPolygon && this.polygonPoints.length > 0) {
