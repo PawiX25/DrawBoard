@@ -4,7 +4,9 @@ class DrawingBoard {
         this.ctx = this.canvas.getContext('2d');
         this.undoStack = [{
             imageData: null,
-            objects: []
+            objects: [],
+            polygonPoints: [],
+            isDrawingPolygon: false
         }];
         this.redoStack = [];
         this.isDrawing = false;
@@ -142,6 +144,12 @@ class DrawingBoard {
     }
 
     startDrawing(e) {
+        if (this.currentTool !== 'polygon' && this.isDrawingPolygon) {
+            this.isDrawingPolygon = false;
+            this.polygonPoints = [];
+            this.redrawCanvas();
+        }
+
         if (this.currentTool === 'polygon') {
             const [x, y] = this.getMousePos(e);
             
@@ -457,7 +465,9 @@ class DrawingBoard {
     saveState() {
         this.undoStack.push({
             imageData: this.canvas.toDataURL(),
-            objects: JSON.parse(JSON.stringify(this.objects))
+            objects: JSON.parse(JSON.stringify(this.objects)),
+            polygonPoints: [...this.polygonPoints],
+            isDrawingPolygon: this.isDrawingPolygon
         });
         this.redoStack = [];
         this.updatePageNavigation();
@@ -493,6 +503,8 @@ class DrawingBoard {
         
         this.objects = JSON.parse(JSON.stringify(state.objects));
         this.selectedObject = null;
+        this.polygonPoints = state.polygonPoints || [];
+        this.isDrawingPolygon = state.isDrawingPolygon || false;
     }
 
     clearCanvas() {
