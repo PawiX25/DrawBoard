@@ -2,7 +2,10 @@ class DrawingBoard {
     constructor() {
         this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
-        this.undoStack = [];
+        this.undoStack = [{
+            imageData: null,
+            objects: []
+        }];
         this.redoStack = [];
         this.isDrawing = false;
         this.color = '#000000';
@@ -302,7 +305,10 @@ class DrawingBoard {
     }
 
     saveState() {
-        this.undoStack.push(this.canvas.toDataURL());
+        this.undoStack.push({
+            imageData: this.canvas.toDataURL(),
+            objects: JSON.parse(JSON.stringify(this.objects))
+        });
         this.redoStack = [];
     }
 
@@ -311,7 +317,9 @@ class DrawingBoard {
         
         const currentState = this.undoStack.pop();
         this.redoStack.push(currentState);
-        this.loadState(this.undoStack[this.undoStack.length - 1]);
+        const previousState = this.undoStack[this.undoStack.length - 1];
+        
+        this.loadState(previousState);
     }
 
     redo() {
@@ -323,12 +331,17 @@ class DrawingBoard {
     }
 
     loadState(state) {
+        if (!state.imageData) return;
+
         const img = new Image();
-        img.src = state;
+        img.src = state.imageData;
         img.onload = () => {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.ctx.drawImage(img, 0, 0);
         };
+        
+        this.objects = JSON.parse(JSON.stringify(state.objects));
+        this.selectedObject = null;
     }
 
     clearCanvas() {
