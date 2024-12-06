@@ -61,7 +61,16 @@
                 <button id="resizeCanvas" title="Resize Canvas"><i class="fas fa-expand"></i></button>
             </div>
         </div>
-        <canvas id="canvas"></canvas>
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+        <div class="page-navigation">
+            <button id="addPage" title="Add Page">
+                <i class="fas fa-plus"></i>
+            </button>
+            <div id="pageList" style="display: flex; gap: 12px; overflow-x: auto; padding: 0 12px;">
+            </div>
+        </div>
     </div>
     <script src="app.js"></script>
 </body>

@@ -39,7 +39,21 @@ class DrawingBoard {
         this.resizeHandle = null;
         this.resizing = false;
 
+        this.pages = [{
+            objects: [],
+            imageData: null
+        }];
+        this.currentPageIndex = 0;
+
+        document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
+
+        this.canvas.width = 800;
+        this.canvas.height = 600;
+        this.canvasWidth.value = 800;
+        this.canvasHeight.value = 600;
+
         this.initializeCanvas();
+        this.updatePageNavigation();
         this.setupEventListeners();
         this.updateColorHistory('#000000');
         this.saveState();
@@ -441,6 +455,7 @@ class DrawingBoard {
             objects: JSON.parse(JSON.stringify(this.objects))
         });
         this.redoStack = [];
+        this.updatePageNavigation();
     }
 
     undo() {
@@ -1022,16 +1037,22 @@ class DrawingBoard {
     }
 
     async exportDrawing() {
+        this.pages[this.currentPageIndex].objects = [...this.objects];
+        this.pages[this.currentPageIndex].imageData = this.canvas.toDataURL();
+
         const exportData = {
-            objects: await Promise.all(this.objects.map(async obj => {
-                if (obj.type === 'image') {
-                    return {
-                        ...obj,
-                        img: await this.imageToBase64(obj.img)
-                    };
-                }
-                return obj;
-            })),
+            pages: await Promise.all(this.pages.map(async page => ({
+                objects: await Promise.all(page.objects.map(async obj => {
+                    if (obj.type === 'image') {
+                        return {
+                            ...obj,
+                            img: await this.imageToBase64(obj.img)
+                        };
+                    }
+                    return obj;
+                })),
+                imageData: page.imageData
+            }))),
             width: this.canvas.width,
             height: this.canvas.height
         };
@@ -1060,23 +1081,29 @@ class DrawingBoard {
                 this.canvasHeight.value = data.height;
             }
 
-            this.objects = await Promise.all(data.objects.map(async obj => {
-                if (obj.type === 'image' && typeof obj.img === 'string') {
-                    const img = new Image();
-                    await new Promise((resolve) => {
-                        img.onload = resolve;
-                        img.src = obj.img;
-                    });
-                    return {
-                        ...obj,
-                        img: img
-                    };
-                }
-                return obj;
-            }));
+            if (data.pages) {
+                this.pages = await Promise.all(data.pages.map(async page => ({
+                    objects: await Promise.all(page.objects.map(async obj => {
+                        if (obj.type === 'image' && typeof obj.img === 'string') {
+                            const img = new Image();
+                            await new Promise((resolve) => {
+                                img.onload = resolve;
+                                img.src = obj.img;
+                            });
+                            return { ...obj, img };
+                        }
+                        return obj;
+                    })),
+                    imageData: page.imageData
+                })));
+
+                this.currentPageIndex = 0;
+                this.objects = [...this.pages[0].objects];
+            }
 
             this.redrawCanvas();
             this.saveState();
+            this.updatePageNavigation();
             this.importInput.value = '';
         } catch (error) {
             console.error('Error importing drawing:', error);
@@ -1092,6 +1119,52 @@ class DrawingBoard {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
             resolve(canvas.toDataURL());
+        });
+    }
+
+    addPage() {
+        this.pages.push({
+            objects: [],
+            imageData: null
+        });
+        this.switchToPage(this.pages.length - 1);
+        this.updatePageNavigation();
+    }
+
+    switchToPage(index) {
+        this.pages[this.currentPageIndex].objects = [...this.objects];
+        this.pages[this.currentPageIndex].imageData = this.canvas.toDataURL();
+
+        this.currentPageIndex = index;
+        this.objects = [...this.pages[index].objects];
+        this.redrawCanvas();
+        this.updatePageNavigation();
+    }
+
+    updatePageNavigation() {
+        const pageList = document.getElementById('pageList');
+        pageList.innerHTML = '';
+
+        this.pages.forEach((page, index) => {
+            const preview = document.createElement('div');
+            preview.className = `page-preview${index === this.currentPageIndex ? ' active' : ''}`;
+
+            if (page.imageData) {
+                const img = document.createElement('img');
+                img.src = page.imageData;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                preview.appendChild(img);
+            }
+
+            const pageNumber = document.createElement('div');
+            pageNumber.className = 'page-number';
+            pageNumber.textContent = `${index + 1}`;
+            preview.appendChild(pageNumber);
+
+            preview.addEventListener('click', () => this.switchToPage(index));
+            pageList.appendChild(preview);
         });
     }
 }

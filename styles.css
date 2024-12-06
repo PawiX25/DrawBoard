@@ -231,3 +231,63 @@ button {
 .resize-controls button {
     padding: 4px 8px;
 }
+
+.page-navigation {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: #252525;
+    border-radius: 12px;
+    margin-top: 20px;
+}
+
+.page-navigation button {
+    background: #333333;
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.page-navigation button:hover {
+    background: #444444;
+}
+
+.page-navigation button.active {
+    background: #0066cc;
+}
+
+.page-preview {
+    width: 40px;
+    height: 60px;
+    background: #fff;
+    border: 2px solid #404040;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.page-preview.active {
+    border-color: #0066cc;
+    transform: scale(1.1);
+}
+
+.page-preview:hover {
+    transform: scale(1.1);
+}
+
+.page-number {
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #999;
+    font-size: 12px;
+}
+
+.canvas-container {
+    margin: 20px 0;
+}
