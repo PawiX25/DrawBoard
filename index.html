@@ -65,11 +65,16 @@
             <canvas id="canvas"></canvas>
         </div>
         <div class="page-navigation">
-            <button id="addPage" title="Add Page">
+            <button class="nav-btn" id="prevPages" title="Previous Pages">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button id="addPage" title="Add Page" class="nav-btn">
                 <i class="fas fa-plus"></i>
             </button>
-            <div id="pageList" style="display: flex; gap: 12px; overflow-x: auto; padding: 0 12px;">
-            </div>
+            <div id="pageList"></div>
+            <button class="nav-btn" id="nextPages" title="Next Pages">
+                <i class="fas fa-chevron-right"></i>
+            </button>
         </div>
     </div>
     <script src="app.js"></script>

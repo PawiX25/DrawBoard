@@ -240,6 +240,41 @@ button {
     background: #252525;
     border-radius: 12px;
     margin-top: 20px;
+    max-width: calc(100% - 32px);
+    overflow: hidden;
+    position: relative;
+}
+
+#pageList {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 40px;
+    gap: 12px;
+    padding: 0 12px;
+    transition: transform 0.3s ease;
+}
+
+.page-navigation button.nav-btn {
+    background: #333333;
+    border: none;
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.page-navigation button.nav-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.page-navigation button.nav-btn:not(:disabled):hover {
+    background: #444444;
 }
 
 .page-navigation button {

@@ -44,8 +44,13 @@ class DrawingBoard {
             imageData: null
         }];
         this.currentPageIndex = 0;
+        this.pageListOffset = 0;
+        this.visiblePages = 0;
 
         document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
+        document.getElementById('prevPages').addEventListener('click', () => this.scrollPages(-1));
+        document.getElementById('nextPages').addEventListener('click', () => this.scrollPages(1));
+        window.addEventListener('resize', () => this.updatePageNavigation());
 
         this.canvas.width = 800;
         this.canvas.height = 600;
@@ -1141,9 +1146,27 @@ class DrawingBoard {
         this.updatePageNavigation();
     }
 
+    scrollPages(direction) {
+        const pageList = document.getElementById('pageList');
+        const maxOffset = Math.max(0, Math.ceil(this.pages.length - this.visiblePages));
+        this.pageListOffset = Math.max(0, Math.min(maxOffset, this.pageListOffset + direction));
+        this.updatePageNavigation();
+    }
+
     updatePageNavigation() {
         const pageList = document.getElementById('pageList');
+        const navigation = document.querySelector('.page-navigation');
         pageList.innerHTML = '';
+
+        const navigationWidth = navigation.offsetWidth;
+        const buttonSpace = 32 * 3 + 24;
+        const availableSpace = navigationWidth - buttonSpace;
+        this.visiblePages = Math.floor(availableSpace / 52);
+
+        const prevBtn = document.getElementById('prevPages');
+        const nextBtn = document.getElementById('nextPages');
+        prevBtn.disabled = this.pageListOffset === 0;
+        nextBtn.disabled = this.pageListOffset >= Math.max(0, this.pages.length - this.visiblePages);
 
         this.pages.forEach((page, index) => {
             const preview = document.createElement('div');
@@ -1166,6 +1189,8 @@ class DrawingBoard {
             preview.addEventListener('click', () => this.switchToPage(index));
             pageList.appendChild(preview);
         });
+
+        pageList.style.transform = `translateX(-${this.pageListOffset * 52}px)`;
     }
 }
 
