@@ -347,3 +347,80 @@ button {
     border-radius: 50%;
     cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="%23ffffff" d="M12 5C8.13 5 5 8.13 5 12H2l3.89 3.89.07.14L10 12H7c0-2.76 2.24-5 5-5s5 2.24 5 5-2.24 5-5 5c-1.38 0-2.64-.56-3.54-1.46l-1.41 1.41C8.53 18.43 10.17 19 12 19c3.87 0 7-3.13 7-7s-3.13-7-7-7z"/></svg>') 8 8, auto;
 }
+
+.layer-panel {
+    display: flex;
+    flex-direction: column;
+    background: #252525;
+    border-radius: 12px;
+    padding: 16px;
+    gap: 8px;
+    min-width: 200px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: #333333;
+    border-radius: 6px;
+    cursor: move;
+}
+
+.layer-item.active {
+    background: #444444;
+    border: 1px solid #0066cc;
+}
+
+.layer-visibility {
+    cursor: pointer;
+    color: #ffffff;
+    opacity: 0.7;
+}
+
+.layer-visibility.visible {
+    opacity: 1;
+}
+
+.layer-name {
+    flex-grow: 1;
+    color: #ffffff;
+}
+
+.layer-opacity {
+    width: 60px;
+    background: #404040;
+    border: none;
+    color: #ffffff;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.layer-blend {
+    background: #404040;
+    border: none;
+    color: #ffffff;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.layer-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.layer-controls button {
+    padding: 4px 8px;
+    background: #404040;
+    border: none;
+    color: #ffffff;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.layer-controls button:hover {
+    background: #505050;
+}

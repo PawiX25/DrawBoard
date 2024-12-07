@@ -53,6 +53,17 @@ class DrawingBoard {
         this.rotationAngle = 0;
         this.rotationCenter = { x: 0, y: 0 };
 
+        this.layers = [{
+            id: 'layer-1',
+            name: 'Layer 1',
+            objects: [],
+            visible: true,
+            opacity: 1,
+            blendMode: 'source-over'
+        }];
+        this.currentLayer = this.layers[0];
+        this.nextLayerId = 2;
+
         document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
         document.getElementById('prevPages').addEventListener('click', () => this.scrollPages(-1));
         document.getElementById('nextPages').addEventListener('click', () => this.scrollPages(1));
@@ -69,6 +80,7 @@ class DrawingBoard {
         this.updateColorHistory('#000000');
         this.saveState();
         document.addEventListener('keydown', this.handleKeyboard.bind(this));
+        this.setupLayerPanel();
     }
 
     initializeCanvas() {
@@ -221,6 +233,10 @@ class DrawingBoard {
                 width: 0,
                 height: 0
             };
+        }
+
+        if (this.isDrawing && this.tempShape) {
+            this.tempShape.layerId = this.currentLayer.id;
         }
     }
 
@@ -469,7 +485,7 @@ class DrawingBoard {
         if (this.isDrawing) {
             this.isDrawing = false;
             if (this.tempShape) {
-                this.objects.push(this.tempShape);
+                this.currentLayer.objects.push(this.tempShape);
                 this.tempShape = null;
             }
             this.saveState();
@@ -486,10 +502,9 @@ class DrawingBoard {
 
     saveState() {
         this.undoStack.push({
+            layers: JSON.parse(JSON.stringify(this.layers)),
             imageData: this.canvas.toDataURL(),
-            objects: JSON.parse(JSON.stringify(this.objects)),
-            polygonPoints: [...this.polygonPoints],
-            isDrawingPolygon: this.isDrawingPolygon
+            currentLayerId: this.currentLayer.id
         });
         this.redoStack = [];
         this.updatePageNavigation();
@@ -523,10 +538,9 @@ class DrawingBoard {
             this.ctx.drawImage(img, 0, 0);
         };
         
-        this.objects = JSON.parse(JSON.stringify(state.objects));
-        this.selectedObject = null;
-        this.polygonPoints = state.polygonPoints || [];
-        this.isDrawingPolygon = state.isDrawingPolygon || false;
+        this.layers = JSON.parse(JSON.stringify(state.layers));
+        this.currentLayer = this.layers.find(l => l.id === state.currentLayerId) || this.layers[0];
+        this.updateLayerList();
     }
 
     clearCanvas() {
@@ -863,14 +877,20 @@ class DrawingBoard {
 
     redrawCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        for (const obj of this.objects) {
-            if (obj.type === 'image') {
-                this.ctx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height);
-            } else {
+
+        this.layers.slice().reverse().forEach(layer => {
+            if (!layer.visible) return;
+
+            this.ctx.globalAlpha = layer.opacity;
+            this.ctx.globalCompositeOperation = layer.blendMode;
+
+            layer.objects.forEach(obj => {
                 this.drawShape(obj);
-            }
-        }
+            });
+        });
+
+        this.ctx.globalAlpha = 1;
+        this.ctx.globalCompositeOperation = 'source-over';
 
         if (this.tempShape) {
             this.drawShape(this.tempShape);
@@ -1284,6 +1304,104 @@ class DrawingBoard {
         });
 
         pageList.style.transform = `translateX(-${this.pageListOffset * 52}px)`;
+    }
+
+    setupLayerPanel() {
+        document.getElementById('addLayer').addEventListener('click', () => this.addLayer());
+        document.getElementById('deleteLayer').addEventListener('click', () => this.deleteLayer());
+        this.updateLayerList();
+    }
+
+    addLayer() {
+        const layer = {
+            id: `layer-${this.nextLayerId++}`,
+            name: `Layer ${this.layers.length + 1}`,
+            objects: [],
+            visible: true,
+            opacity: 1,
+            blendMode: 'source-over'
+        };
+        this.layers.unshift(layer);
+        this.currentLayer = layer;
+        this.updateLayerList();
+        this.redrawCanvas();
+    }
+
+    deleteLayer() {
+        if (this.layers.length <= 1) return;
+        const index = this.layers.indexOf(this.currentLayer);
+        this.layers.splice(index, 1);
+        this.currentLayer = this.layers[0];
+        this.updateLayerList();
+        this.redrawCanvas();
+    }
+
+    updateLayerList() {
+        const layerList = document.getElementById('layerList');
+        layerList.innerHTML = '';
+
+        this.layers.forEach(layer => {
+            const item = document.createElement('div');
+            item.className = `layer-item${layer === this.currentLayer ? ' active' : ''}`;
+            item.setAttribute('draggable', true);
+            item.innerHTML = `
+                <i class="fas fa-eye${layer.visible ? '' : '-slash'} layer-visibility"></i>
+                <span class="layer-name">${layer.name}</span>
+                <input type="number" class="layer-opacity" value="${layer.opacity * 100}" min="0" max="100">
+                <select class="layer-blend">
+                    ${['source-over', 'multiply', 'screen', 'overlay', 'darken', 'lighten'].map(mode => 
+                        `<option value="${mode}"${layer.blendMode === mode ? ' selected' : ''}>${mode}</option>`
+                    ).join('')}
+                </select>
+            `;
+
+            item.addEventListener('click', () => {
+                this.currentLayer = layer;
+                this.updateLayerList();
+            });
+
+            item.querySelector('.layer-visibility').addEventListener('click', (e) => {
+                e.stopPropagation();
+                layer.visible = !layer.visible;
+                e.target.classList.toggle('visible');
+                this.redrawCanvas();
+            });
+
+            const opacityInput = item.querySelector('.layer-opacity');
+            opacityInput.addEventListener('change', (e) => {
+                layer.opacity = Math.max(0, Math.min(1, parseInt(e.target.value) / 100));
+                this.redrawCanvas();
+            });
+
+            const blendSelect = item.querySelector('.layer-blend');
+            blendSelect.addEventListener('change', (e) => {
+                layer.blendMode = e.target.value;
+                this.redrawCanvas();
+            });
+
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', layer.id);
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const draggedId = e.dataTransfer.getData('text/plain');
+                const draggedLayer = this.layers.find(l => l.id === draggedId);
+                const dropIndex = this.layers.indexOf(layer);
+                const dragIndex = this.layers.indexOf(draggedLayer);
+                
+                this.layers.splice(dragIndex, 1);
+                this.layers.splice(dropIndex, 0, draggedLayer);
+                this.updateLayerList();
+                this.redrawCanvas();
+            });
+
+            layerList.appendChild(item);
+        });
     }
 }
 
