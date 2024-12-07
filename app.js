@@ -42,8 +42,15 @@ class DrawingBoard {
         this.resizing = false;
 
         this.pages = [{
-            objects: [],
-            imageData: null
+            layers: [{
+                id: 'layer-1',
+                name: 'Layer 1',
+                objects: [],
+                visible: true,
+                opacity: 1,
+                blendMode: 'source-over'
+            }],
+            currentLayerId: 'layer-1'
         }];
         this.currentPageIndex = 0;
         this.pageListOffset = 0;
@@ -53,14 +60,7 @@ class DrawingBoard {
         this.rotationAngle = 0;
         this.rotationCenter = { x: 0, y: 0 };
 
-        this.layers = [{
-            id: 'layer-1',
-            name: 'Layer 1',
-            objects: [],
-            visible: true,
-            opacity: 1,
-            blendMode: 'source-over'
-        }];
+        this.layers = this.pages[0].layers;
         this.currentLayer = this.layers[0];
         this.nextLayerId = 2;
 
@@ -1190,18 +1190,22 @@ class DrawingBoard {
     }
 
     async exportDrawing() {
+        this.pages[this.currentPageIndex].layers = [...this.layers];
+        this.pages[this.currentPageIndex].currentLayerId = this.currentLayer.id;
+
         const exportData = {
-            layers: this.layers,
+            pages: this.pages,
             width: this.canvas.width,
-            height: this.canvas.height,
-            currentLayerId: this.currentLayer.id
+            height: this.canvas.height
         };
 
-        for (const layer of exportData.layers) {
-            for (const obj of layer.objects) {
-                if (obj.type === 'image' && obj.img) {
-                    obj.imgData = await this.imageToBase64(obj.img);
-                    obj.img = null;
+        for (const page of exportData.pages) {
+            for (const layer of page.layers) {
+                for (const obj of layer.objects) {
+                    if (obj.type === 'image' && obj.img) {
+                        obj.imgData = await this.imageToBase64(obj.img);
+                        obj.img = null;
+                    }
                 }
             }
         }
@@ -1230,28 +1234,35 @@ class DrawingBoard {
                 this.canvasHeight.value = data.height;
             }
 
-            if (data.layers) {
-                this.layers = data.layers;
-                for (const layer of this.layers) {
-                    for (const obj of layer.objects) {
-                        if (obj.type === 'image' && obj.imgData) {
-                            const img = new Image();
-                            await new Promise((resolve) => {
-                                img.onload = resolve;
-                                img.src = obj.imgData;
-                            });
-                            obj.img = img;
-                            delete obj.imgData;
+            if (data.pages) {
+                for (const page of data.pages) {
+                    for (const layer of page.layers) {
+                        for (const obj of layer.objects) {
+                            if (obj.type === 'image' && obj.imgData) {
+                                const img = new Image();
+                                await new Promise((resolve) => {
+                                    img.onload = resolve;
+                                    img.src = obj.imgData;
+                                });
+                                obj.img = img;
+                                delete obj.imgData;
+                            }
                         }
                     }
                 }
-                this.currentLayer = this.layers.find(l => l.id === data.currentLayerId) || this.layers[0];
-                this.nextLayerId = Math.max(...this.layers.map(l => parseInt(l.id.split('-')[1]))) + 1;
+
+                this.pages = data.pages;
+                this.currentPageIndex = 0;
+                this.layers = [...this.pages[0].layers];
+                this.currentLayer = this.layers.find(l => l.id === this.pages[0].currentLayerId) || this.layers[0];
+                
+                const allLayerIds = this.pages.flatMap(p => p.layers.map(l => parseInt(l.id.split('-')[1])));
+                this.nextLayerId = Math.max(...allLayerIds) + 1;
             }
 
             this.redrawCanvas();
-            this.saveState();
             this.updateLayerList();
+            this.updatePageNavigation();
             this.importInput.value = '';
         } catch (error) {
             console.error('Error importing drawing:', error);
@@ -1271,21 +1282,32 @@ class DrawingBoard {
     }
 
     addPage() {
-        this.pages.push({
-            objects: [],
-            imageData: null
-        });
+        const newPage = {
+            layers: [{
+                id: `layer-${this.nextLayerId++}`,
+                name: 'Layer 1',
+                objects: [],
+                visible: true,
+                opacity: 1,
+                blendMode: 'source-over'
+            }],
+            currentLayerId: `layer-${this.nextLayerId - 1}`
+        };
+        
+        this.pages.push(newPage);
         this.switchToPage(this.pages.length - 1);
-        this.updatePageNavigation();
     }
 
     switchToPage(index) {
-        this.pages[this.currentPageIndex].objects = [...this.objects];
-        this.pages[this.currentPageIndex].imageData = this.canvas.toDataURL();
+        this.pages[this.currentPageIndex].layers = [...this.layers];
+        this.pages[this.currentPageIndex].currentLayerId = this.currentLayer.id;
 
         this.currentPageIndex = index;
-        this.objects = [...this.pages[index].objects];
+        this.layers = [...this.pages[index].layers];
+        this.currentLayer = this.layers.find(l => l.id === this.pages[index].currentLayerId) || this.layers[0];
+        
         this.redrawCanvas();
+        this.updateLayerList();
         this.updatePageNavigation();
     }
 
