@@ -144,6 +144,10 @@ canvas.resize-w {
     cursor: w-resize;
 }
 
+canvas.rotate {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="%23ffffff" d="M12 5C8.13 5 5 8.13 5 12H2l3.89 3.89.07.14L10 12H7c0-2.76 2.24-5 5-5s5 2.24 5 5-2.24 5-5 5c-1.38 0-2.64-.56-3.54-1.46l-1.41 1.41C8.53 18.43 10.17 19 12 19c3.87 0 7-3.13 7-7s-3.13-7-7-7z"/></svg>') 8 8, auto;
+}
+
 button {
     padding: 8px 16px;
     cursor: pointer;
@@ -332,4 +336,14 @@ button {
 
 .canvas-container {
     margin: 20px 0;
+}
+
+.rotation-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #ffffff;
+    border: 1px solid #00ff00;
+    border-radius: 50%;
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="%23ffffff" d="M12 5C8.13 5 5 8.13 5 12H2l3.89 3.89.07.14L10 12H7c0-2.76 2.24-5 5-5s5 2.24 5 5-2.24 5-5 5c-1.38 0-2.64-.56-3.54-1.46l-1.41 1.41C8.53 18.43 10.17 19 12 19c3.87 0 7-3.13 7-7s-3.13-7-7-7z"/></svg>') 8 8, auto;
 }

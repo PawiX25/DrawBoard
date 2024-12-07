@@ -49,6 +49,10 @@ class DrawingBoard {
         this.pageListOffset = 0;
         this.visiblePages = 0;
 
+        this.isRotating = false;
+        this.rotationAngle = 0;
+        this.rotationCenter = { x: 0, y: 0 };
+
         document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
         document.getElementById('prevPages').addEventListener('click', () => this.scrollPages(-1));
         document.getElementById('nextPages').addEventListener('click', () => this.scrollPages(1));
@@ -247,9 +251,21 @@ class DrawingBoard {
     }
 
     draw(e) {
-        if (!this.isDrawing && !this.isDragging && !this.resizing) return;
+        if (!this.isDrawing && !this.isDragging && !this.resizing && !this.isRotating) return;
         
         const [x, y] = this.getMousePos(e);
+
+        if (this.isRotating && this.selectedObject) {
+            const angle1 = Math.atan2(this.startY - this.rotationCenter.y, this.startX - this.rotationCenter.x);
+            const angle2 = Math.atan2(y - this.rotationCenter.y, x - this.rotationCenter.x);
+            const deltaAngle = angle2 - angle1;
+            
+            this.selectedObject.rotation = (this.selectedObject.rotation || 0) + deltaAngle;
+            this.startX = x;
+            this.startY = y;
+            this.redrawCanvas();
+            return;
+        }
 
         if (this.resizing && this.selectedObject && this.resizeHandle) {
             const dx = x - this.startX;
@@ -433,6 +449,12 @@ class DrawingBoard {
     }
 
     stopDrawing() {
+        if (this.isRotating) {
+            this.isRotating = false;
+            this.canvas.style.cursor = 'default';
+            this.saveState();
+        }
+        
         if (this.resizing) {
             this.resizing = false;
             this.resizeHandle = null;
@@ -635,6 +657,19 @@ class DrawingBoard {
 
     handleSelection(x, y) {
         if (this.selectedObject) {
+            const rotationHandle = this.getRotationHandle(this.selectedObject);
+            if (x >= rotationHandle.x && x <= rotationHandle.x + 8 &&
+                y >= rotationHandle.y && y <= rotationHandle.y + 8) {
+                this.isRotating = true;
+                this.rotationCenter = {
+                    x: this.selectedObject.x + this.selectedObject.width / 2,
+                    y: this.selectedObject.y + this.selectedObject.height / 2
+                };
+                this.startX = x;
+                this.startY = y;
+                this.canvas.style.cursor = 'rotate';
+                return;
+            }
             const handles = this.getResizeHandles(this.selectedObject);
             for (const handle of handles) {
                 if (x >= handle.x && x <= handle.x + 8 &&
@@ -817,6 +852,15 @@ class DrawingBoard {
         return handles;
     }
 
+    getRotationHandle(obj) {
+        return {
+            x: obj.x + obj.width / 2 - 4,
+            y: obj.y - 30,
+            cursor: 'rotate',
+            position: 'rotation'
+        };
+    }
+
     redrawCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -855,6 +899,26 @@ class DrawingBoard {
                 this.ctx.fill();
                 this.ctx.stroke();
             });
+
+            const rotationHandle = this.getRotationHandle(this.selectedObject);
+            this.ctx.beginPath();
+            this.ctx.moveTo(
+                this.selectedObject.x + this.selectedObject.width / 2,
+                this.selectedObject.y
+            );
+            this.ctx.lineTo(
+                this.selectedObject.x + this.selectedObject.width / 2,
+                rotationHandle.y + 4
+            );
+            this.ctx.strokeStyle = '#00ff00';
+            this.ctx.stroke();
+            
+            this.ctx.beginPath();
+            this.ctx.arc(rotationHandle.x + 4, rotationHandle.y + 4, 4, 0, 2 * Math.PI);
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.strokeStyle = '#00ff00';
+            this.ctx.fill();
+            this.ctx.stroke();
         }
         
         if (this.isDrawingPolygon && this.polygonPoints.length > 0) {
@@ -878,6 +942,19 @@ class DrawingBoard {
     }
 
     drawShape(shape) {
+        if (shape.rotation) {
+            this.ctx.save();
+            this.ctx.translate(
+                shape.x + shape.width / 2,
+                shape.y + shape.height / 2
+            );
+            this.ctx.rotate(shape.rotation);
+            this.ctx.translate(
+                -(shape.x + shape.width / 2),
+                -(shape.y + shape.height / 2)
+            );
+        }
+
         this.ctx.strokeStyle = shape.color;
         this.ctx.fillStyle = shape.color;
         this.ctx.lineWidth = shape.size;
@@ -939,6 +1016,10 @@ class DrawingBoard {
                 }
                 this.ctx.stroke();
                 break;
+        }
+
+        if (shape.rotation) {
+            this.ctx.restore();
         }
     }
 
