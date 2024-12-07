@@ -247,7 +247,7 @@ class DrawingBoard {
             const maxX = Math.max(...this.polygonPoints.map(p => p[0]));
             const maxY = Math.max(...this.polygonPoints.map(p => p[1]));
             
-            this.objects.push({
+            const polygon = {
                 type: 'polygon',
                 points: [...this.polygonPoints],
                 x: minX,
@@ -256,8 +256,11 @@ class DrawingBoard {
                 height: maxY - minY,
                 color: this.color,
                 size: this.brushSize,
-                fill: this.fillShape
-            });
+                fill: this.fillShape,
+                layerId: this.currentLayer.id
+            };
+            
+            this.currentLayer.objects.push(polygon);
         }
         
         this.isDrawingPolygon = false;
@@ -698,66 +701,71 @@ class DrawingBoard {
             }
         }
 
-        for (let i = this.objects.length - 1; i >= 0; i--) {
-            const obj = this.objects[i];
-            let isHit = false;
+        for (const layer of this.layers) {
+            if (!layer.visible) continue;
+            
+            for (let i = layer.objects.length - 1; i >= 0; i--) {
+                const obj = layer.objects[i];
+                let isHit = false;
 
-            if (obj.type === 'circle') {
-                const radius = Math.sqrt(
-                    Math.pow(obj.endX - obj.startX, 2) + 
-                    Math.pow(obj.endY - obj.startY, 2)
-                );
-                const distance = Math.sqrt(
-                    Math.pow(x - obj.startX, 2) + 
-                    Math.pow(y - obj.startY, 2)
-                );
-                isHit = distance <= radius;
-                
-                if (isHit && !obj.width) {
-                    obj.x = obj.startX - radius;
-                    obj.y = obj.startY - radius;
-                    obj.width = radius * 2;
-                    obj.height = radius * 2;
+                if (obj.type === 'polygon') {
+                    isHit = this.isPointInPolygon(x, y, obj.points);
+                    
+                    if (isHit) {
+                        const xs = obj.points.map(p => p[0]);
+                        const ys = obj.points.map(p => p[1]);
+                        obj.x = Math.min(...xs);
+                        obj.y = Math.min(...ys);
+                        obj.width = Math.max(...xs) - obj.x;
+                        obj.height = Math.max(...ys) - obj.y;
+                    }
+                } else if (obj.type === 'circle') {
+                    const radius = Math.sqrt(
+                        Math.pow(obj.endX - obj.startX, 2) + 
+                        Math.pow(obj.endY - obj.startY, 2)
+                    );
+                    const distance = Math.sqrt(
+                        Math.pow(x - obj.startX, 2) + 
+                        Math.pow(y - obj.startY, 2)
+                    );
+                    isHit = distance <= radius;
+                    
+                    if (isHit && !obj.width) {
+                        obj.x = obj.startX - radius;
+                        obj.y = obj.startY - radius;
+                        obj.width = radius * 2;
+                        obj.height = radius * 2;
+                    }
+                } else if (obj.type === 'line') {
+                    const lineDistance = this.pointToLineDistance(
+                        x, y,
+                        obj.startX, obj.startY,
+                        obj.endX, obj.endY
+                    );
+                    isHit = lineDistance < 5;
+                    
+                    if (isHit) {
+                        obj.x = Math.min(obj.startX, obj.endX);
+                        obj.y = Math.min(obj.startY, obj.endY);
+                        obj.width = Math.abs(obj.endX - obj.startX);
+                        obj.height = Math.abs(obj.endY - obj.startY);
+                    }
+                } else {
+                    isHit = x >= obj.x && x <= obj.x + obj.width &&
+                            y >= obj.y && y <= obj.y + obj.height;
                 }
-            } else if (obj.type === 'line') {
-                const lineDistance = this.pointToLineDistance(
-                    x, y,
-                    obj.startX, obj.startY,
-                    obj.endX, obj.endY
-                );
-                isHit = lineDistance < 5;
-                
-                if (isHit) {
-                    obj.x = Math.min(obj.startX, obj.endX);
-                    obj.y = Math.min(obj.startY, obj.endY);
-                    obj.width = Math.abs(obj.endX - obj.startX);
-                    obj.height = Math.abs(obj.endY - obj.startY);
-                }
-            } else if (obj.type === 'polygon') {
-                isHit = this.isPointInPolygon(x, y, obj.points);
-                
-                if (isHit) {
-                    const xs = obj.points.map(p => p[0]);
-                    const ys = obj.points.map(p => p[1]);
-                    obj.x = Math.min(...xs);
-                    obj.y = Math.min(...ys);
-                    obj.width = Math.max(...xs) - obj.x;
-                    obj.height = Math.max(...ys) - obj.y;
-                }
-            } else {
-                isHit = x >= obj.x && x <= obj.x + obj.width &&
-                        y >= obj.y && y <= obj.y + obj.height;
-            }
 
-            if (isHit) {
-                this.selectedObject = obj;
-                this.isDragging = true;
-                this.dragOffset.x = x - obj.x;
-                this.dragOffset.y = y - obj.y;
-                this.redrawCanvas();
-                return;
+                if (isHit) {
+                    this.selectedObject = obj;
+                    this.isDragging = true;
+                    this.dragOffset.x = x - obj.x;
+                    this.dragOffset.y = y - obj.y;
+                    this.redrawCanvas();
+                    return;
+                }
             }
         }
+        
         this.selectedObject = null;
         this.isDragging = false;
         this.redrawCanvas();
@@ -1130,12 +1138,15 @@ class DrawingBoard {
                 case 'Backspace':
                     if (this.selectedObject) {
                         e.preventDefault();
-                        const index = this.objects.indexOf(this.selectedObject);
-                        if (index > -1) {
-                            this.objects.splice(index, 1);
-                            this.selectedObject = null;
-                            this.redrawCanvas();
-                            this.saveState();
+                        const layer = this.layers.find(l => l.objects.includes(this.selectedObject));
+                        if (layer) {
+                            const index = layer.objects.indexOf(this.selectedObject);
+                            if (index > -1) {
+                                layer.objects.splice(index, 1);
+                                this.selectedObject = null;
+                                this.redrawCanvas();
+                                this.saveState();
+                            }
                         }
                     }
                     break;
