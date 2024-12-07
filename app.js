@@ -520,6 +520,10 @@ class DrawingBoard {
     }
 
     saveState() {
+        const currentPage = this.pages[this.currentPageIndex];
+        currentPage.layers = JSON.parse(JSON.stringify(this.layers));
+        currentPage.currentLayerId = this.currentLayer.id;
+
         this.undoStack.push({
             layers: JSON.parse(JSON.stringify(this.layers)),
             imageData: this.canvas.toDataURL(),
@@ -1338,14 +1342,38 @@ class DrawingBoard {
             const preview = document.createElement('div');
             preview.className = `page-preview${index === this.currentPageIndex ? ' active' : ''}`;
 
-            if (page.imageData) {
-                const img = document.createElement('img');
-                img.src = page.imageData;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'cover';
-                preview.appendChild(img);
-            }
+            const previewCanvas = document.createElement('canvas');
+            previewCanvas.width = 40;
+            previewCanvas.height = 60;
+            const previewCtx = previewCanvas.getContext('2d');
+            
+            previewCtx.fillStyle = '#ffffff';
+            previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+            
+            const scale = Math.min(
+                previewCanvas.width / this.canvas.width,
+                previewCanvas.height / this.canvas.height
+            );
+            
+            const offsetX = (previewCanvas.width - this.canvas.width * scale) / 2;
+            const offsetY = (previewCanvas.height - this.canvas.height * scale) / 2;
+            
+            previewCtx.save();
+            previewCtx.translate(offsetX, offsetY);
+            previewCtx.scale(scale, scale);
+            
+            page.layers.slice().reverse().forEach(layer => {
+                if (!layer.visible) return;
+                previewCtx.globalAlpha = layer.opacity;
+                previewCtx.globalCompositeOperation = layer.blendMode;
+                
+                layer.objects.forEach(obj => {
+                    this.drawShape(obj, previewCtx);
+                });
+            });
+            
+            previewCtx.restore();
+            preview.appendChild(previewCanvas);
 
             const pageNumber = document.createElement('div');
             pageNumber.className = 'page-number';
