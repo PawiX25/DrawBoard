@@ -81,6 +81,13 @@ class DrawingBoard {
         this.saveState();
         document.addEventListener('keydown', this.handleKeyboard.bind(this));
         this.setupLayerPanel();
+
+        this.helpDialog = document.getElementById('helpDialog');
+        document.getElementById('help').addEventListener('click', () => this.showHelp());
+        document.getElementById('closeHelp').addEventListener('click', () => this.hideHelp());
+        this.helpDialog.addEventListener('click', (e) => {
+            if (e.target === this.helpDialog) this.hideHelp();
+        });
     }
 
     initializeCanvas() {
@@ -1192,6 +1199,12 @@ class DrawingBoard {
                     break;
             }
         }
+
+        if (e.key === 'h' || e.key === '?') {
+            e.preventDefault();
+            this.showHelp();
+            return;
+        }
     }
 
     async exportDrawing() {
@@ -1511,6 +1524,14 @@ class DrawingBoard {
         });
         
         ctx.restore();
+    }
+
+    showHelp() {
+        this.helpDialog.classList.add('active');
+    }
+
+    hideHelp() {
+        this.helpDialog.classList.remove('active');
     }
 }
 

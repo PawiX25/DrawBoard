@@ -432,3 +432,76 @@ button {
 .layer-controls button:hover {
     background: #505050;
 }
+
+.help-dialog {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-dialog.active {
+    display: flex;
+}
+
+.help-content {
+    background: #252525;
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.help-content h2 {
+    margin: 0 0 20px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.help-content #closeHelp {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.help-content #closeHelp:hover {
+    background: #333;
+    color: #fff;
+}
+
+.shortcuts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+}
+
+.shortcuts-category h3 {
+    color: #0066cc;
+    margin: 0 0 12px 0;
+}
+
+.shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+}
+
+.shortcut-row span:first-child {
+    background: #333;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+}

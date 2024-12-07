@@ -42,6 +42,8 @@
                 <input type="number" id="fontSize" value="20" min="8" max="72">
             </div>
             <div class="divider"></div>
+            <button id="help" title="Keyboard Shortcuts"><i class="fas fa-keyboard"></i></button>
+            <div class="divider"></div>
             <div class="fill-option">
                 <input type="checkbox" id="fillShape" />
                 <label for="fillShape">Fill</label>
@@ -70,6 +72,33 @@
                 <button id="deleteLayer"><i class="fas fa-trash"></i></button>
             </div>
             <div id="layerList"></div>
+        </div>
+        <div class="help-dialog" id="helpDialog">
+            <div class="help-content">
+                <h2>Keyboard Shortcuts <button id="closeHelp"><i class="fas fa-times"></i></button></h2>
+                <div class="shortcuts-grid">
+                    <div class="shortcuts-category">
+                        <h3>Tools</h3>
+                        <div class="shortcut-row"><span>1</span><span>Brush</span></div>
+                        <div class="shortcut-row"><span>2</span><span>Line</span></div>
+                        <div class="shortcut-row"><span>3</span><span>Rectangle</span></div>
+                        <div class="shortcut-row"><span>4</span><span>Circle</span></div>
+                        <div class="shortcut-row"><span>5</span><span>Polygon</span></div>
+                        <div class="shortcut-row"><span>6</span><span>Select</span></div>
+                        <div class="shortcut-row"><span>7</span><span>Text</span></div>
+                    </div>
+                    <div class="shortcuts-category">
+                        <h3>Actions</h3>
+                        <div class="shortcut-row"><span>Ctrl + Z</span><span>Undo</span></div>
+                        <div class="shortcut-row"><span>Ctrl + Y</span><span>Redo</span></div>
+                        <div class="shortcut-row"><span>Ctrl + S</span><span>Save</span></div>
+                        <div class="shortcut-row"><span>Ctrl + C</span><span>Copy</span></div>
+                        <div class="shortcut-row"><span>Ctrl + V</span><span>Paste</span></div>
+                        <div class="shortcut-row"><span>Delete</span><span>Delete Selected</span></div>
+                        <div class="shortcut-row"><span>Escape</span><span>Deselect</span></div>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="page-navigation">
             <button class="nav-btn" id="prevPages" title="Previous Pages">
