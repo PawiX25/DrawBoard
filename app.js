@@ -206,16 +206,19 @@ class DrawingBoard {
                 this.ctx.font = font;
                 const textWidth = this.ctx.measureText(text).width;
 
-                this.objects.push({
+                const textObj = {
                     type: 'text',
                     text: text,
                     x: this.startX,
-                    y: this.startY - fontSize,
+                    y: this.startY,
                     font: font,
                     color: this.color,
                     width: textWidth,
-                    height: fontSize
-                });
+                    height: fontSize,
+                    layerId: this.currentLayer.id
+                };
+                
+                this.currentLayer.objects.push(textObj);
                 this.redrawCanvas();
                 this.saveState();
             }
@@ -628,15 +631,17 @@ class DrawingBoard {
                 const x = (this.canvas.width - width) / 2;
                 const y = (this.canvas.height - height) / 2;
                 
-                this.objects.push({
+                const imageObj = {
                     type: 'image',
                     img: img,
                     x: x,
                     y: y,
                     width: width,
-                    height: height
-                });
+                    height: height,
+                    layerId: this.currentLayer.id
+                };
                 
+                this.currentLayer.objects.push(imageObj);
                 this.redrawCanvas();
                 this.saveState();
             };
@@ -1043,6 +1048,12 @@ class DrawingBoard {
                     this.ctx.fill();
                 }
                 this.ctx.stroke();
+                break;
+
+            case 'image':
+                if (shape.img) {
+                    this.ctx.drawImage(shape.img, shape.x, shape.y, shape.width, shape.height);
+                }
                 break;
         }
 
