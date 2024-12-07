@@ -1190,25 +1190,21 @@ class DrawingBoard {
     }
 
     async exportDrawing() {
-        this.pages[this.currentPageIndex].objects = [...this.objects];
-        this.pages[this.currentPageIndex].imageData = this.canvas.toDataURL();
-
         const exportData = {
-            pages: await Promise.all(this.pages.map(async page => ({
-                objects: await Promise.all(page.objects.map(async obj => {
-                    if (obj.type === 'image') {
-                        return {
-                            ...obj,
-                            img: await this.imageToBase64(obj.img)
-                        };
-                    }
-                    return obj;
-                })),
-                imageData: page.imageData
-            }))),
+            layers: this.layers,
             width: this.canvas.width,
-            height: this.canvas.height
+            height: this.canvas.height,
+            currentLayerId: this.currentLayer.id
         };
+
+        for (const layer of exportData.layers) {
+            for (const obj of layer.objects) {
+                if (obj.type === 'image' && obj.img) {
+                    obj.imgData = await this.imageToBase64(obj.img);
+                    obj.img = null;
+                }
+            }
+        }
 
         const blob = new Blob([JSON.stringify(exportData)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -1234,29 +1230,28 @@ class DrawingBoard {
                 this.canvasHeight.value = data.height;
             }
 
-            if (data.pages) {
-                this.pages = await Promise.all(data.pages.map(async page => ({
-                    objects: await Promise.all(page.objects.map(async obj => {
-                        if (obj.type === 'image' && typeof obj.img === 'string') {
+            if (data.layers) {
+                this.layers = data.layers;
+                for (const layer of this.layers) {
+                    for (const obj of layer.objects) {
+                        if (obj.type === 'image' && obj.imgData) {
                             const img = new Image();
                             await new Promise((resolve) => {
                                 img.onload = resolve;
-                                img.src = obj.img;
+                                img.src = obj.imgData;
                             });
-                            return { ...obj, img };
+                            obj.img = img;
+                            delete obj.imgData;
                         }
-                        return obj;
-                    })),
-                    imageData: page.imageData
-                })));
-
-                this.currentPageIndex = 0;
-                this.objects = [...this.pages[0].objects];
+                    }
+                }
+                this.currentLayer = this.layers.find(l => l.id === data.currentLayerId) || this.layers[0];
+                this.nextLayerId = Math.max(...this.layers.map(l => parseInt(l.id.split('-')[1]))) + 1;
             }
 
             this.redrawCanvas();
             this.saveState();
-            this.updatePageNavigation();
+            this.updateLayerList();
             this.importInput.value = '';
         } catch (error) {
             console.error('Error importing drawing:', error);
