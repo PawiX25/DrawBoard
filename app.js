@@ -527,6 +527,7 @@ class DrawingBoard {
         });
         this.redoStack = [];
         this.updatePageNavigation();
+        this.updateLayerList();
     }
 
     undo() {
@@ -987,48 +988,48 @@ class DrawingBoard {
         }
     }
 
-    drawShape(shape) {
+    drawShape(shape, ctx = this.ctx) {
         if (shape.rotation) {
-            this.ctx.save();
-            this.ctx.translate(
+            ctx.save();
+            ctx.translate(
                 shape.x + shape.width / 2,
                 shape.y + shape.height / 2
             );
-            this.ctx.rotate(shape.rotation);
-            this.ctx.translate(
+            ctx.rotate(shape.rotation);
+            ctx.translate(
                 -(shape.x + shape.width / 2),
                 -(shape.y + shape.height / 2)
             );
         }
 
-        this.ctx.strokeStyle = shape.color;
-        this.ctx.fillStyle = shape.color;
-        this.ctx.lineWidth = shape.size;
+        ctx.strokeStyle = shape.color;
+        ctx.fillStyle = shape.color;
+        ctx.lineWidth = shape.size;
 
-        this.ctx.beginPath();
+        ctx.beginPath();
 
         switch (shape.type) {
             case 'brush':
                 if (shape.points && shape.points.length > 0) {
-                    this.ctx.moveTo(shape.points[0][0], shape.points[0][1]);
+                    ctx.moveTo(shape.points[0][0], shape.points[0][1]);
                     shape.points.forEach(point => {
-                        this.ctx.lineTo(point[0], point[1]);
+                        ctx.lineTo(point[0], point[1]);
                     });
                 }
-                this.ctx.stroke();
+                ctx.stroke();
                 break;
 
             case 'line':
-                this.ctx.moveTo(shape.startX, shape.startY);
-                this.ctx.lineTo(shape.endX, shape.endY);
-                this.ctx.stroke();
+                ctx.moveTo(shape.startX, shape.startY);
+                ctx.lineTo(shape.endX, shape.endY);
+                ctx.stroke();
                 break;
 
             case 'rectangle':
                 if (shape.fill) {
-                    this.ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+                    ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
                 }
-                this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
                 break;
 
             case 'circle':
@@ -1036,42 +1037,42 @@ class DrawingBoard {
                     Math.pow(shape.endX - shape.startX, 2) + 
                     Math.pow(shape.endY - shape.startY, 2)
                 );
-                this.ctx.arc(shape.startX, shape.startY, radius, 0, 2 * Math.PI);
+                ctx.arc(shape.startX, shape.startY, radius, 0, 2 * Math.PI);
                 if (shape.fill) {
-                    this.ctx.fill();
+                    ctx.fill();
                 }
-                this.ctx.stroke();
+                ctx.stroke();
                 break;
 
             case 'text':
-                this.ctx.font = shape.font;
-                this.ctx.fillStyle = shape.color;
-                this.ctx.textBaseline = 'top';
-                this.ctx.fillText(shape.text, shape.x, shape.y);
+                ctx.font = shape.font;
+                ctx.fillStyle = shape.color;
+                ctx.textBaseline = 'top';
+                ctx.fillText(shape.text, shape.x, shape.y);
                 break;
                 
             case 'polygon':
-                this.ctx.beginPath();
-                this.ctx.moveTo(shape.points[0][0], shape.points[0][1]);
+                ctx.beginPath();
+                ctx.moveTo(shape.points[0][0], shape.points[0][1]);
                 for (let i = 1; i < shape.points.length; i++) {
-                    this.ctx.lineTo(shape.points[i][0], shape.points[i][1]);
+                    ctx.lineTo(shape.points[i][0], shape.points[i][1]);
                 }
-                this.ctx.closePath();
+                ctx.closePath();
                 if (shape.fill) {
-                    this.ctx.fill();
+                    ctx.fill();
                 }
-                this.ctx.stroke();
+                ctx.stroke();
                 break;
 
             case 'image':
                 if (shape.img) {
-                    this.ctx.drawImage(shape.img, shape.x, shape.y, shape.width, shape.height);
+                    ctx.drawImage(shape.img, shape.x, shape.y, shape.width, shape.height);
                 }
                 break;
         }
 
         if (shape.rotation) {
-            this.ctx.restore();
+            ctx.restore();
         }
     }
 
@@ -1396,6 +1397,13 @@ class DrawingBoard {
             const item = document.createElement('div');
             item.className = `layer-item${layer === this.currentLayer ? ' active' : ''}`;
             item.setAttribute('draggable', true);
+
+            const preview = document.createElement('canvas');
+            preview.className = 'layer-preview';
+            preview.width = 40;
+            preview.height = 30;
+            this.updateLayerPreview(preview, layer);
+
             item.innerHTML = `
                 <i class="fas fa-eye${layer.visible ? '' : '-slash'} layer-visibility"></i>
                 <span class="layer-name">${layer.name}</span>
@@ -1406,6 +1414,8 @@ class DrawingBoard {
                     ).join('')}
                 </select>
             `;
+
+            item.insertBefore(preview, item.firstChild);
 
             item.addEventListener('click', () => {
                 this.currentLayer = layer;
@@ -1454,6 +1464,25 @@ class DrawingBoard {
 
             layerList.appendChild(item);
         });
+    }
+
+    updateLayerPreview(previewCanvas, layer) {
+        const ctx = previewCanvas.getContext('2d');
+        const scale = previewCanvas.width / this.canvas.width;
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+        
+        ctx.save();
+        ctx.scale(scale, scale);
+        
+        layer.objects.forEach(obj => {
+            ctx.globalAlpha = layer.opacity;
+            ctx.globalCompositeOperation = layer.blendMode;
+            this.drawShape(obj, ctx);
+        });
+        
+        ctx.restore();
     }
 }
 
