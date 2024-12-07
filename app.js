@@ -1134,14 +1134,19 @@ class DrawingBoard {
                     if (this.selectedObject) {
                         e.preventDefault();
                         this.clipboardObject = JSON.parse(JSON.stringify(this.selectedObject));
+                        this.clipboardObject.originalLayerId = this.selectedObject.layerId;
                     }
                     break;
                 case 'v':
                     if (this.clipboardObject) {
                         e.preventDefault();
                         const newObject = JSON.parse(JSON.stringify(this.clipboardObject));
+                        
+                        newObject.layerId = this.currentLayer.id;
+                        
                         newObject.x += 10;
                         newObject.y += 10;
+
                         if (newObject.startX) {
                             newObject.startX += 10;
                             newObject.endX += 10;
@@ -1154,9 +1159,22 @@ class DrawingBoard {
                                 point[1] + 10
                             ]);
                         }
-                        this.objects.push(newObject);
-                        this.redrawCanvas();
-                        this.saveState();
+
+                        if (newObject.type === 'image' && newObject.imgData) {
+                            const img = new Image();
+                            img.onload = () => {
+                                newObject.img = img;
+                                delete newObject.imgData;
+                                this.currentLayer.objects.push(newObject);
+                                this.redrawCanvas();
+                                this.saveState();
+                            };
+                            img.src = newObject.imgData;
+                        } else {
+                            this.currentLayer.objects.push(newObject);
+                            this.redrawCanvas();
+                            this.saveState();
+                        }
                     }
                     break;
                 case 'e':
@@ -1220,9 +1238,14 @@ class DrawingBoard {
         for (const page of exportData.pages) {
             for (const layer of page.layers) {
                 for (const obj of layer.objects) {
-                    if (obj.type === 'image' && obj.img) {
-                        obj.imgData = await this.imageToBase64(obj.img);
-                        obj.img = null;
+                    if (obj.type === 'image') {
+                        if (obj.img) {
+                            obj.imgData = await this.imageToBase64(obj.img);
+                            obj.img = null;
+                        }
+                        if (this.selectedObject === obj && this.clipboardObject) {
+                            this.clipboardObject.imgData = obj.imgData;
+                        }
                     }
                 }
             }
