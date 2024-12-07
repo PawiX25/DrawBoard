@@ -200,13 +200,14 @@ class DrawingBoard {
         if (this.currentTool === 'text') {
             const text = this.textInput.value.trim();
             if (text) {
+                [this.startX, this.startY] = this.getMousePos(e);
                 const fontFamily = this.fontSelect.value;
                 const fontSize = parseInt(this.fontSize.value, 10);
                 const font = `${fontSize}px ${fontFamily}`;
                 this.ctx.font = font;
                 const textWidth = this.ctx.measureText(text).width;
 
-                const textObj = {
+                this.tempShape = {
                     type: 'text',
                     text: text,
                     x: this.startX,
@@ -218,9 +219,9 @@ class DrawingBoard {
                     layerId: this.currentLayer.id
                 };
                 
-                this.currentLayer.objects.push(textObj);
+                this.isDrawing = true;
                 this.redrawCanvas();
-                this.saveState();
+                this.drawShape(this.tempShape);
             }
             return;
         }
@@ -421,6 +422,14 @@ class DrawingBoard {
         if (this.isDrawing && !this.resizing) {
             const [x, y] = this.getMousePos(e);
 
+            if (this.currentTool === 'text' && this.tempShape) {
+                this.tempShape.x = x;
+                this.tempShape.y = y;
+                this.redrawCanvas();
+                this.drawShape(this.tempShape);
+                return;
+            }
+
             if (this.currentTool === 'brush') {
                 this.tempShape.points.push([x, y]);
                 this.tempShape.x = Math.min(this.tempShape.x, x);
@@ -491,10 +500,14 @@ class DrawingBoard {
         if (this.isDrawing) {
             this.isDrawing = false;
             if (this.tempShape) {
-                this.currentLayer.objects.push(this.tempShape);
+                if (this.tempShape.type === 'text') {
+                    this.currentLayer.objects.push({...this.tempShape});
+                } else {
+                    this.currentLayer.objects.push(this.tempShape);
+                }
                 this.tempShape = null;
+                this.saveState();
             }
-            this.saveState();
         }
     }
 
