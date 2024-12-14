@@ -103,6 +103,8 @@ class DrawingBoard {
             '8': 'select',
             '9': 'text'
         };
+
+        document.getElementById('exportSvg').addEventListener('click', this.exportSvg.bind(this));
     }
 
     initializeCanvas() {
@@ -1722,6 +1724,168 @@ class DrawingBoard {
 
     hideHelp() {
         this.helpDialog.classList.remove('active');
+    }
+
+    exportSvg() {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', this.canvas.width);
+        svg.setAttribute('height', this.canvas.height);
+        svg.setAttribute('viewBox', `0 0 ${this.canvas.width} ${this.canvas.height}`);
+        
+        const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        background.setAttribute('width', '100%');
+        background.setAttribute('height', '100%');
+        background.setAttribute('fill', '#ffffff');
+        svg.appendChild(background);
+
+        this.layers.slice().reverse().forEach(layer => {
+            if (!layer.visible) return;
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('opacity', layer.opacity);
+            if (layer.blendMode !== 'source-over') {
+                g.setAttribute('style', `mix-blend-mode: ${layer.blendMode}`);
+            }
+
+            layer.objects.forEach(obj => {
+                const element = this.objectToSvg(obj);
+                if (element) {
+                    if (obj.rotation) {
+                        const cx = obj.x + obj.width / 2;
+                        const cy = obj.y + obj.height / 2;
+                        element.setAttribute('transform', 
+                            `rotate(${obj.rotation * 180 / Math.PI} ${cx} ${cy})`);
+                    }
+                    g.appendChild(element);
+                }
+            });
+
+            svg.appendChild(g);
+        });
+
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const blob = new Blob([svgData], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'drawing.svg';
+        link.click();
+        URL.revokeObjectURL(url);
+    }
+
+    objectToSvg(obj) {
+        let element;
+
+        switch (obj.type) {
+            case 'brush':
+            case 'freehand':
+                element = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                let d = `M ${obj.points[0][0]} ${obj.points[0][1]}`;
+                obj.points.slice(1).forEach(point => {
+                    d += ` L ${point[0]} ${point[1]}`;
+                });
+                element.setAttribute('d', d);
+                element.setAttribute('stroke', obj.color);
+                element.setAttribute('stroke-width', obj.size);
+                element.setAttribute('fill', obj.fill ? obj.color : 'none');
+                element.setAttribute('stroke-linecap', 'round');
+                element.setAttribute('stroke-linejoin', 'round');
+                break;
+
+            case 'line':
+                element = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                element.setAttribute('x1', obj.startX);
+                element.setAttribute('y1', obj.startY);
+                element.setAttribute('x2', obj.endX);
+                element.setAttribute('y2', obj.endY);
+                element.setAttribute('stroke', obj.color);
+                element.setAttribute('stroke-width', obj.size);
+                break;
+
+            case 'rectangle':
+                element = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                element.setAttribute('x', obj.x);
+                element.setAttribute('y', obj.y);
+                element.setAttribute('width', obj.width);
+                element.setAttribute('height', obj.height);
+                element.setAttribute('stroke', obj.color);
+                element.setAttribute('stroke-width', obj.size);
+                element.setAttribute('fill', obj.fill ? obj.color : 'none');
+                break;
+
+            case 'circle':
+                element = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                element.setAttribute('cx', obj.startX);
+                element.setAttribute('cy', obj.startY);
+                const radius = Math.sqrt(
+                    Math.pow(obj.endX - obj.startX, 2) + 
+                    Math.pow(obj.endY - obj.startY, 2)
+                );
+                element.setAttribute('r', radius);
+                element.setAttribute('stroke', obj.color);
+                element.setAttribute('stroke-width', obj.size);
+                element.setAttribute('fill', obj.fill ? obj.color : 'none');
+                break;
+
+            case 'polygon':
+                element = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                const points = obj.points.map(p => `${p[0]},${p[1]}`).join(' ');
+                element.setAttribute('points', points);
+                element.setAttribute('stroke', obj.color);
+                element.setAttribute('stroke-width', obj.size);
+                element.setAttribute('fill', obj.fill ? obj.color : 'none');
+                break;
+
+            case 'text':
+                element = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                element.setAttribute('x', obj.x);
+                element.setAttribute('y', obj.y);
+                element.setAttribute('fill', obj.color);
+                element.setAttribute('font', obj.font);
+                element.textContent = obj.text;
+                break;
+
+            case 'arrow':
+                element = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', obj.startX);
+                line.setAttribute('y1', obj.startY);
+                line.setAttribute('x2', obj.endX);
+                line.setAttribute('y2', obj.endY);
+                line.setAttribute('stroke', obj.color);
+                line.setAttribute('stroke-width', obj.size);
+
+                const angle = Math.atan2(obj.endY - obj.startY, obj.endX - obj.startX);
+                const headLength = obj.size * 5;
+
+                const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                arrowHead.setAttribute('d', `
+                    M ${obj.endX} ${obj.endY}
+                    L ${obj.endX - headLength * Math.cos(angle - Math.PI / 6)}
+                      ${obj.endY - headLength * Math.sin(angle - Math.PI / 6)}
+                    M ${obj.endX} ${obj.endY}
+                    L ${obj.endX - headLength * Math.cos(angle + Math.PI / 6)}
+                      ${obj.endY - headLength * Math.sin(angle + Math.PI / 6)}
+                `);
+                arrowHead.setAttribute('stroke', obj.color);
+                arrowHead.setAttribute('stroke-width', obj.size);
+                arrowHead.setAttribute('fill', 'none');
+
+                element.appendChild(line);
+                element.appendChild(arrowHead);
+                break;
+
+            case 'image':
+                element = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                element.setAttribute('x', obj.x);
+                element.setAttribute('y', obj.y);
+                element.setAttribute('width', obj.width);
+                element.setAttribute('height', obj.height);
+                element.setAttributeNS('http://www.w3.org/1999/xlink', 'href', obj.img.src);
+                break;
+        }
+
+        return element;
     }
 }
 
