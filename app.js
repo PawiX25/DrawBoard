@@ -64,6 +64,9 @@ class DrawingBoard {
         this.currentLayer = this.layers[0];
         this.nextLayerId = 2;
 
+        this.smoothingFactor = 0.2;
+        this.freehandPoints = [];
+
         document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
         document.getElementById('prevPages').addEventListener('click', () => this.scrollPages(-1));
         document.getElementById('nextPages').addEventListener('click', () => this.scrollPages(1));
@@ -85,19 +88,20 @@ class DrawingBoard {
         this.helpDialog = document.getElementById('helpDialog');
         document.getElementById('help').addEventListener('click', () => this.showHelp());
         document.getElementById('closeHelp').addEventListener('click', () => this.hideHelp());
-        this.helpDialog.addEventListener('click', (e) => {
-            if (e.target === this.helpDialog) this.hideHelp();
-        });
+            this.helpDialog.addEventListener('click', (e) => {
+                if (e.target === this.helpDialog) this.hideHelp();
+            });
 
         this.toolMap = {
             '1': 'brush',
-            '2': 'line',
-            '3': 'arrow',
-            '4': 'rectangle',
-            '5': 'circle',
-            '6': 'polygon',
-            '7': 'select',
-            '8': 'text'
+            '2': 'freehand',
+            '3': 'line',
+            '4': 'arrow',
+            '5': 'rectangle',
+            '6': 'circle',
+            '7': 'polygon',
+            '8': 'select',
+            '9': 'text'
         };
     }
 
@@ -270,6 +274,22 @@ class DrawingBoard {
                 height: 0,
                 color: this.color,
                 size: this.brushSize,
+                layerId: this.currentLayer.id
+            };
+        }
+
+        if (this.currentTool === 'freehand') {
+            this.freehandPoints = [[this.startX, this.startY]];
+            this.tempShape = {
+                type: 'freehand',
+                color: this.color,
+                size: this.brushSize,
+                points: [],
+                x: this.startX,
+                y: this.startY,
+                width: 0,
+                height: 0,
+                fill: this.fillShape,
                 layerId: this.currentLayer.id
             };
         }
@@ -518,9 +538,76 @@ class DrawingBoard {
                 this.tempShape.height = Math.abs(y - this.startY);
             }
 
+            if (this.currentTool === 'freehand') {
+                this.freehandPoints.push([x, y]);
+                
+                if (this.freehandPoints.length > 2) {
+                    const smoothedPoints = this.smoothPoints(this.freehandPoints);
+                    this.tempShape.points = smoothedPoints;
+                    
+                    const xs = smoothedPoints.map(p => p[0]);
+                    const ys = smoothedPoints.map(p => p[1]);
+                    this.tempShape.x = Math.min(...xs);
+                    this.tempShape.y = Math.min(...ys);
+                    this.tempShape.width = Math.max(...xs) - this.tempShape.x;
+                    this.tempShape.height = Math.max(...ys) - this.tempShape.y;
+                }
+                
+                this.redrawCanvas();
+                return;
+            }
+
             this.redrawCanvas();
             this.drawShape(this.tempShape);
         }
+    }
+
+    smoothPoints(points) {
+        if (points.length < 3) return points;
+
+        const smoothed = [];
+        smoothed.push(points[0]);
+
+        for (let i = 1; i < points.length - 1; i++) {
+            const prev = points[i - 1];
+            const curr = points[i];
+            const next = points[i + 1];
+
+            const smoothX = curr[0] * (1 - this.smoothingFactor) +
+                          (prev[0] + next[0]) / 2 * this.smoothingFactor;
+            const smoothY = curr[1] * (1 - this.smoothingFactor) +
+                          (prev[1] + next[1]) / 2 * this.smoothingFactor;
+
+            smoothed.push([smoothX, smoothY]);
+        }
+
+        smoothed.push(points[points.length - 1]);
+        return this.simplifyPoints(smoothed);
+    }
+
+    simplifyPoints(points, tolerance = 1) {
+        if (points.length < 3) return points;
+
+        const simplified = [points[0]];
+        let prev = points[0];
+
+        for (let i = 1; i < points.length - 1; i++) {
+            const curr = points[i];
+            const next = points[i + 1];
+
+            const dx = next[0] - prev[0];
+            const dy = next[1] - prev[1];
+            const distance = Math.abs(dx * (prev[1] - curr[1]) - (prev[0] - curr[0]) * dy) /
+                           Math.sqrt(dx * dx + dy * dy);
+
+            if (distance > tolerance) {
+                simplified.push(curr);
+                prev = curr;
+            }
+        }
+
+        simplified.push(points[points.length - 1]);
+        return simplified;
     }
 
     stopDrawing() {
@@ -1140,6 +1227,24 @@ class DrawingBoard {
                 );
                 ctx.stroke();
                 break;
+
+            case 'freehand':
+                if (shape.points && shape.points.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(shape.points[0][0], shape.points[0][1]);
+                    
+                    for (let i = 1; i < shape.points.length; i++) {
+                        const [x, y] = shape.points[i];
+                        ctx.lineTo(x, y);
+                    }
+                    
+                    if (shape.fill) {
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    ctx.stroke();
+                }
+                break;
         }
 
         if (shape.rotation) {
@@ -1152,13 +1257,14 @@ class DrawingBoard {
 
         const toolMap = {
             '1': 'brush',
-            '2': 'line',
-            '3': 'arrow',
-            '4': 'rectangle',
-            '5': 'circle',
-            '6': 'polygon',
-            '7': 'select',
-            '8': 'text'
+            '2': 'freehand',
+            '3': 'line',
+            '4': 'arrow',
+            '5': 'rectangle',
+            '6': 'circle',
+            '7': 'polygon',
+            '8': 'select',
+            '9': 'text'
         };
 
         if (toolMap[e.key]) {
