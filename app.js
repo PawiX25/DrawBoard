@@ -67,6 +67,10 @@ class DrawingBoard {
         this.smoothingFactor = 0.2;
         this.freehandPoints = [];
 
+        this.showGrid = false;
+        this.snapToGrid = false;
+        this.gridSize = 20;
+
         document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
         document.getElementById('prevPages').addEventListener('click', () => this.scrollPages(-1));
         document.getElementById('nextPages').addEventListener('click', () => this.scrollPages(1));
@@ -105,6 +109,13 @@ class DrawingBoard {
         };
 
         document.getElementById('exportSvg').addEventListener('click', this.exportSvg.bind(this));
+        document.getElementById('showGrid').addEventListener('change', (e) => {
+            this.showGrid = e.target.checked;
+            this.redrawCanvas();
+        });
+        document.getElementById('snapToGrid').addEventListener('change', (e) => {
+            this.snapToGrid = e.target.checked;
+        });
     }
 
     initializeCanvas() {
@@ -646,10 +657,13 @@ class DrawingBoard {
 
     getMousePos(e) {
         const rect = this.canvas.getBoundingClientRect();
-        return [
-            e.clientX - rect.left,
-            e.clientY - rect.top
-        ];
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+        if (this.snapToGrid) {
+            x = Math.round(x / this.gridSize) * this.gridSize;
+            y = Math.round(y / this.gridSize) * this.gridSize;
+        }
+        return [x, y];
     }
 
     saveState() {
@@ -1123,6 +1137,10 @@ class DrawingBoard {
                 this.ctx.fill();
             });
         }
+
+        if (this.showGrid) {
+            this.drawGrid();
+        }
     }
 
     drawShape(shape, ctx = this.ctx) {
@@ -1252,6 +1270,28 @@ class DrawingBoard {
         if (shape.rotation) {
             ctx.restore();
         }
+    }
+
+    drawGrid() {
+        const gridSize = this.gridSize;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        this.ctx.save();
+        this.ctx.strokeStyle = '#e0e0e0';
+        this.ctx.lineWidth = 0.5;
+        for (let x = 0; x <= width; x += gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, height);
+            this.ctx.stroke();
+        }
+        for (let y = 0; y <= height; y += gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(width, y);
+            this.ctx.stroke();
+        }
+        this.ctx.restore();
     }
 
     handleKeyboard(e) {
