@@ -71,6 +71,12 @@ class DrawingBoard {
         this.snapToGrid = false;
         this.gridSize = 20;
 
+        this.zoomLevel = 1;
+        this.panOffset = { x: 0, y: 0 };
+        this.isPanning = false;
+        this.lastPanPosition = { x: 0, y: 0 };
+        this.zoomLevelDisplay = document.getElementById('zoomLevel');
+
         document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
         document.getElementById('prevPages').addEventListener('click', () => this.scrollPages(-1));
         document.getElementById('nextPages').addEventListener('click', () => this.scrollPages(1));
@@ -116,6 +122,11 @@ class DrawingBoard {
         document.getElementById('snapToGrid').addEventListener('change', (e) => {
             this.snapToGrid = e.target.checked;
         });
+
+        document.getElementById('zoomIn').addEventListener('click', () => this.zoom(1.2));
+        document.getElementById('zoomOut').addEventListener('click', () => this.zoom(0.8));
+        document.getElementById('resetZoom').addEventListener('click', () => this.resetZoom());
+        this.canvas.addEventListener('wheel', this.handleWheel.bind(this));
     }
 
     initializeCanvas() {
@@ -225,7 +236,26 @@ class DrawingBoard {
         }
         if (this.currentTool === 'select') {
             const [x, y] = this.getMousePos(e);
-            this.handleSelection(x, y);
+            let hitObject = false;
+
+            for (const layer of this.layers) {
+                if (!layer.visible) continue;
+                for (let i = layer.objects.length - 1; i >= 0; i--) {
+                    const obj = layer.objects[i];
+                    if (this.isPointInObject(x, y, obj)) {
+                        hitObject = true;
+                        this.handleSelection(x, y);
+                        break;
+                    }
+                }
+                if (hitObject) break;
+            }
+
+            if (!hitObject) {
+                this.isPanning = true;
+                this.lastPanPosition = { x: e.clientX, y: e.clientY };
+                this.canvas.style.cursor = 'grab';
+            }
             return;
         }
         
@@ -280,7 +310,7 @@ class DrawingBoard {
                 startX: this.startX,
                 startY: this.startY,
                 endX: this.startX,
-                endY: this.startY,
+                endY: this.startX,
                 x: this.startX,
                 y: this.startY,
                 width: 0,
@@ -342,6 +372,17 @@ class DrawingBoard {
     }
 
     draw(e) {
+        if (this.isPanning) {
+            const deltaX = e.clientX - this.lastPanPosition.x;
+            const deltaY = e.clientY - this.lastPanPosition.y;
+            
+            this.panOffset.x += deltaX;
+            this.panOffset.y += deltaY;
+            
+            this.lastPanPosition = { x: e.clientX, y: e.clientY };
+            this.redrawCanvas();
+            return;
+        }
         if (!this.isDrawing && !this.isDragging && !this.resizing && !this.isRotating) return;
         
         const [x, y] = this.getMousePos(e);
@@ -623,7 +664,12 @@ class DrawingBoard {
         return simplified;
     }
 
-    stopDrawing() {
+    stopDrawing(e) {
+        if (this.isPanning) {
+            this.isPanning = false;
+            this.canvas.style.cursor = 'default';
+            return;
+        }
         if (this.isRotating) {
             this.isRotating = false;
             this.canvas.style.cursor = 'default';
@@ -657,8 +703,9 @@ class DrawingBoard {
 
     getMousePos(e) {
         const rect = this.canvas.getBoundingClientRect();
-        let x = e.clientX - rect.left;
-        let y = e.clientY - rect.top;
+        let x = (e.clientX - rect.left - this.panOffset.x) / this.zoomLevel;
+        let y = (e.clientY - rect.top - this.panOffset.y) / this.zoomLevel;
+        
         if (this.snapToGrid) {
             x = Math.round(x / this.gridSize) * this.gridSize;
             y = Math.round(y / this.gridSize) * this.gridSize;
@@ -1054,7 +1101,13 @@ class DrawingBoard {
     }
 
     redrawCanvas() {
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.ctx.setTransform(this.zoomLevel, 0, 0, this.zoomLevel, this.panOffset.x, this.panOffset.y);
+
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillRect(0, 0, this.canvas.width / this.zoomLevel, this.canvas.height / this.zoomLevel);
 
         this.layers.slice().reverse().forEach(layer => {
             if (!layer.visible) return;
@@ -1926,6 +1979,75 @@ class DrawingBoard {
         }
 
         return element;
+    }
+
+    handleWheel(e) {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const step = 0.1; 
+            const scale = e.deltaY < 0 ? (1 + step) : (1 - step);
+            this.zoomAtPoint(scale, mouseX, mouseY);
+        }
+    }
+
+    zoomAtPoint(scale, mouseX, mouseY) {
+        const startX = (mouseX - this.panOffset.x) / this.zoomLevel;
+        const startY = (mouseY - this.panOffset.y) / this.zoomLevel;
+
+        let newZoom = this.zoomLevel * scale;
+        newZoom = Math.round(newZoom * 10) / 10;
+        this.zoomLevel = Math.min(Math.max(0.1, newZoom), 10);
+
+        const endX = (mouseX - this.panOffset.x) / this.zoomLevel;
+        const endY = (mouseY - this.panOffset.y) / this.zoomLevel;
+
+        this.panOffset.x += (endX - startX) * this.zoomLevel;
+        this.panOffset.y += (endY - startY) * this.zoomLevel;
+
+        this.updateZoomDisplay();
+        this.redrawCanvas();
+    }
+
+    zoom(scale) {
+        const rect = this.canvas.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        this.zoomAtPoint(scale, centerX, centerY);
+    }
+
+    resetZoom() {
+        this.zoomLevel = 1;
+        this.panOffset = { x: 0, y: 0 };
+        this.updateZoomDisplay();
+        this.redrawCanvas();
+    }
+
+    updateZoomDisplay() {
+        const zoomPercent = Math.round(this.zoomLevel * 100);
+        this.zoomLevelDisplay.textContent = `${zoomPercent}%`;
+    }
+
+    isPointInObject(x, y, obj) {
+        if (obj.type === 'polygon') {
+            return this.isPointInPolygon(x, y, obj.points);
+        } else if (obj.type === 'circle') {
+            const radius = Math.sqrt(
+                Math.pow(obj.endX - obj.startX, 2) + 
+                Math.pow(obj.endY - obj.startY, 2)
+            );
+            const distance = Math.sqrt(
+                Math.pow(x - obj.startX, 2) + 
+                Math.pow(y - obj.startY, 2)
+            );
+            return distance <= radius;
+        } else {
+            return x >= obj.x && x <= obj.x + obj.width &&
+                   y >= obj.y && y <= obj.y + obj.height;
+        }
     }
 }
 
