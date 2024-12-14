@@ -88,6 +88,17 @@ class DrawingBoard {
         this.helpDialog.addEventListener('click', (e) => {
             if (e.target === this.helpDialog) this.hideHelp();
         });
+
+        this.toolMap = {
+            '1': 'brush',
+            '2': 'line',
+            '3': 'arrow',
+            '4': 'rectangle',
+            '5': 'circle',
+            '6': 'polygon',
+            '7': 'select',
+            '8': 'text'
+        };
     }
 
     initializeCanvas() {
@@ -243,6 +254,23 @@ class DrawingBoard {
                 y: this.startY,
                 width: 0,
                 height: 0
+            };
+        }
+
+        if (this.currentTool === 'arrow') {
+            this.tempShape = {
+                type: 'arrow',
+                startX: this.startX,
+                startY: this.startY,
+                endX: this.startX,
+                endY: this.startY,
+                x: this.startX,
+                y: this.startY,
+                width: 0,
+                height: 0,
+                color: this.color,
+                size: this.brushSize,
+                layerId: this.currentLayer.id
             };
         }
 
@@ -479,6 +507,15 @@ class DrawingBoard {
                     size: size,
                     fill: this.fillShape
                 };
+            }
+
+            if (this.currentTool === 'arrow') {
+                this.tempShape.endX = x;
+                this.tempShape.endY = y;
+                this.tempShape.x = Math.min(this.startX, x);
+                this.tempShape.y = Math.min(this.startY, y);
+                this.tempShape.width = Math.abs(x - this.startX);
+                this.tempShape.height = Math.abs(y - this.startY);
             }
 
             this.redrawCanvas();
@@ -1080,6 +1117,29 @@ class DrawingBoard {
                     ctx.drawImage(shape.img, shape.x, shape.y, shape.width, shape.height);
                 }
                 break;
+
+            case 'arrow':
+                const angle = Math.atan2(shape.endY - shape.startY, shape.endX - shape.startX);
+                const headLength = shape.size * 5;
+                
+                ctx.beginPath();
+                ctx.moveTo(shape.startX, shape.startY);
+                ctx.lineTo(shape.endX, shape.endY);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(shape.endX, shape.endY);
+                ctx.lineTo(
+                    shape.endX - headLength * Math.cos(angle - Math.PI / 6),
+                    shape.endY - headLength * Math.sin(angle - Math.PI / 6)
+                );
+                ctx.moveTo(shape.endX, shape.endY);
+                ctx.lineTo(
+                    shape.endX - headLength * Math.cos(angle + Math.PI / 6),
+                    shape.endY - headLength * Math.sin(angle + Math.PI / 6)
+                );
+                ctx.stroke();
+                break;
         }
 
         if (shape.rotation) {
@@ -1093,11 +1153,12 @@ class DrawingBoard {
         const toolMap = {
             '1': 'brush',
             '2': 'line',
-            '3': 'rectangle',
-            '4': 'circle',
-            '5': 'polygon',
-            '6': 'select',
-            '7': 'text'
+            '3': 'arrow',
+            '4': 'rectangle',
+            '5': 'circle',
+            '6': 'polygon',
+            '7': 'select',
+            '8': 'text'
         };
 
         if (toolMap[e.key]) {
