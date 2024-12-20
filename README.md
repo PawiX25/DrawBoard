@@ -1,33 +1,96 @@
 # DrawBoard
 
-A simple web-based drawing application that allows users to draw, select tools, and manipulate shapes on a canvas.
+A powerful web-based drawing application that allows users to create, edit, and manipulate artwork with multiple tools and layers.
 
 ## Features
 
-- **Brush Tool**: Freehand drawing with adjustable brush size and color.
-- **Shapes**: Draw lines, rectangles, and circles with optional fill.
-- **Text Tool**: Add text with customizable font and size.
-- **Image Upload**: Upload and paste images onto the canvas.
-- **Undo/Redo**: Navigate through drawing history.
-- **Color History**: Quick access to recently used colors.
-- **Canvas Resize**: Adjust canvas dimensions.
-- **Download**: Save your drawing as an image file.
+- **Drawing Tools**:
+  - Brush: Freehand drawing with adjustable size
+  - Freehand Shape: Create smooth, continuous shapes
+  - Line: Draw straight lines
+  - Arrow: Draw lines with arrow heads
+  - Rectangle: Draw rectangles with optional fill
+  - Circle: Create circles with adjustable radius
+  - Polygon: Create multi-point shapes
+  - Text: Add text with customizable font and size
+  - Select: Move, resize, and rotate objects
 
-## Usage
+- **Layer Management**:
+  - Multiple layers with visibility toggle
+  - Layer opacity control
+  - Blend mode selection
+  - Drag and drop layer reordering
 
-1. Open `index.html` in a web browser.
-2. Use the controls at the top to select tools and options.
-3. Draw on the canvas using the selected tool.
-4. Customize your drawing with colors, brush sizes, and shapes.
-5. Use undo/redo buttons to navigate changes.
-6. Download your artwork using the download button.
+- **Image Handling**:
+  - Image upload support
+  - Paste images from clipboard
+  - Export to PNG and SVG formats
+  - Save and load drawings (JSON format)
 
-## Files
+- **Canvas Features**:
+  - Multi-page support
+  - Zoom and pan
+  - Grid overlay with snap-to-grid
+  - Undo/redo support
+  - Color history
+  - Shape history for quick reuse
 
-- `index.html`: The main HTML file with the application's structure.
-- `styles.css`: Contains styles for the layout and appearance.
-- `app.js`: Implements the drawing functionality and event handling.
+## Keyboard Shortcuts
+
+### Tools
+- `1`: Brush
+- `2`: Freehand Shape
+- `3`: Line
+- `4`: Arrow
+- `5`: Rectangle
+- `6`: Circle
+- `7`: Polygon
+- `8`: Select
+- `9`: Text
+
+### Actions
+- `Ctrl + Z`: Undo
+- `Ctrl + Y` or `Ctrl + Shift + Z`: Redo
+- `Ctrl + S`: Save as PNG
+- `Ctrl + C`: Copy selected object
+- `Ctrl + V`: Paste object
+- `Ctrl + E`: Export drawing
+- `Ctrl + I`: Import drawing
+- `Delete`: Delete selected object
+- `Escape`: Deselect or cancel polygon drawing
+- `H` or `?`: Show keyboard shortcuts
 
 ## Development
 
 No installation required. Simply open the `index.html` file in a compatible web browser to run the application.
+
+### File Structure
+- `index.html`: The main HTML file with the application's structure
+- `styles.css`: Contains styles for the layout and appearance
+- `app.js`: Implements the drawing functionality and event handling
+
+### Features in Detail
+
+#### Layer System
+- Each layer has independent opacity and blend mode settings
+- Supports common blend modes: normal, multiply, screen, overlay, darken, lighten
+- Live preview of layer contents
+- Drag-and-drop reordering
+
+#### Multi-page Support
+- Create multiple pages in a single document
+- Page preview thumbnails
+- Navigate between pages
+- Copy and paste between pages
+
+#### Advanced Selection
+- Move objects with arrow keys
+- Resize from corners or edges
+- Rotate objects
+- Maintain aspect ratio with modifier keys
+
+#### Grid System
+- Toggleable grid overlay
+- Adjustable grid size
+- Optional snap-to-grid functionality
+- Helps with precise alignment
