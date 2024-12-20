@@ -543,18 +543,18 @@ button {
     right: 10px;
     top: 60px;
     width: 70px;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    background: #252525;
+    border: 1px solid #404040;
+    border-radius: 8px;
     padding: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .shape-history-panel h3 {
     margin: 0 0 8px 0;
     font-size: 12px;
     text-align: center;
-    color: #666;
+    color: #999;
 }
 
 #shapeHistory {
@@ -564,13 +564,14 @@ button {
 }
 
 #shapeHistory canvas {
-    border: 1px solid #ddd;
+    border: 1px solid #404040;
     border-radius: 4px;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s, border-color 0.2s;
+    background: #333;
 }
 
 #shapeHistory canvas:hover {
     transform: scale(1.05);
-    border-color: #666;
+    border-color: #0066cc;
 }
