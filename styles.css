@@ -55,6 +55,21 @@ body {
     box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.3);
 }
 
+.controls input[type="number"] {
+    width: 60px;
+    background: #333333;
+    color: #ffffff;
+    border: 1px solid #404040;
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+.controls input[type="number"]:focus {
+    border-color: #0066cc;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.3);
+}
+
 .divider {
     width: 1px;
     height: 24px;

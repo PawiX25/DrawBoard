@@ -293,6 +293,14 @@ class DrawingBoard {
                 this.canvas.style.cursor = this.currentTool === 'select' ? 'default' : 'crosshair';
             }
         });
+
+        document.getElementById('gridSize').addEventListener('change', (e) => {
+            const size = parseInt(e.target.value);
+            if (size >= 5 && size <= 100) {
+                this.gridSize = size;
+                this.redrawCanvas();
+            }
+        });
     }
 
     updateToolUI() {
