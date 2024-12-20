@@ -522,3 +522,40 @@ button {
     border-radius: 4px;
     font-family: monospace;
 }
+
+.shape-history-panel {
+    position: absolute;
+    right: 10px;
+    top: 60px;
+    width: 70px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.shape-history-panel h3 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    text-align: center;
+    color: #666;
+}
+
+#shapeHistory {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#shapeHistory canvas {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+#shapeHistory canvas:hover {
+    transform: scale(1.05);
+    border-color: #666;
+}

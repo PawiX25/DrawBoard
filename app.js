@@ -77,6 +77,9 @@ class DrawingBoard {
         this.lastPanPosition = { x: 0, y: 0 };
         this.zoomLevelDisplay = document.getElementById('zoomLevel');
 
+        this.shapeHistory = [];
+        this.maxShapeHistory = 10;
+
         document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
         document.getElementById('prevPages').addEventListener('click', () => this.scrollPages(-1));
         document.getElementById('nextPages').addEventListener('click', () => this.scrollPages(1));
@@ -127,6 +130,96 @@ class DrawingBoard {
         document.getElementById('zoomOut').addEventListener('click', () => this.zoom(0.8));
         document.getElementById('resetZoom').addEventListener('click', () => this.resetZoom());
         this.canvas.addEventListener('wheel', this.handleWheel.bind(this));
+
+        this.setupShapeHistory();
+    }
+
+    setupShapeHistory() {
+        this.shapeHistoryContainer = document.getElementById('shapeHistory');
+    }
+
+    addToShapeHistory(shape) {
+        if (!shape || shape.type === 'image' || shape.type === 'text') return;
+
+        const shapeClone = JSON.parse(JSON.stringify(shape));
+        
+        shapeClone.x = 0;
+        shapeClone.y = 0;
+        if (shapeClone.points) {
+            const minX = Math.min(...shapeClone.points.map(p => p[0]));
+            const minY = Math.min(...shapeClone.points.map(p => p[1]));
+            shapeClone.points = shapeClone.points.map(p => [p[0] - minX, p[1] - minY]);
+        }
+        if (shapeClone.startX !== undefined) {
+            const minX = Math.min(shapeClone.startX, shapeClone.endX);
+            const minY = Math.min(shapeClone.startY, shapeClone.endY);
+            shapeClone.startX -= minX;
+            shapeClone.startY -= minY;
+            shapeClone.endX -= minX;
+            shapeClone.endY -= minY;
+        }
+
+        this.shapeHistory.unshift(shapeClone);
+        if (this.shapeHistory.length > this.maxShapeHistory) {
+            this.shapeHistory.pop();
+        }
+        
+        this.updateShapeHistoryDisplay();
+    }
+
+    updateShapeHistoryDisplay() {
+        this.shapeHistoryContainer.innerHTML = '';
+        
+        this.shapeHistory.forEach((shape, index) => {
+            const preview = document.createElement('canvas');
+            preview.width = 50;
+            preview.height = 50;
+            const ctx = preview.getContext('2d');
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 50, 50);
+            
+            const scaledShape = JSON.parse(JSON.stringify(shape));
+            const scale = Math.min(40 / shape.width, 40 / shape.height);
+            
+            ctx.save();
+            ctx.translate(5, 5);
+            ctx.scale(scale, scale);
+            this.drawShape(scaledShape, ctx);
+            ctx.restore();
+            
+            preview.addEventListener('click', () => this.reuseShape(shape));
+            preview.title = `Reuse ${shape.type}`;
+            this.shapeHistoryContainer.appendChild(preview);
+        });
+    }
+
+    reuseShape(originalShape) {
+        const shape = JSON.parse(JSON.stringify(originalShape));
+        shape.layerId = this.currentLayer.id;
+        
+        const rect = this.canvas.getBoundingClientRect();
+        const x = (this.lastMouseX || rect.width / 2) - rect.left;
+        const y = (this.lastMouseY || rect.height / 2) - rect.top;
+        
+        shape.x = x;
+        shape.y = y;
+        
+        if (shape.points) {
+            shape.points = shape.points.map(p => [p[0] + x, p[1] + y]);
+        }
+        if (shape.startX !== undefined) {
+            const dx = x - shape.x;
+            const dy = y - shape.y;
+            shape.startX += dx;
+            shape.startY += dy;
+            shape.endX += dx;
+            shape.endY += dy;
+        }
+        
+        this.currentLayer.objects.push(shape);
+        this.redrawCanvas();
+        this.saveState();
     }
 
     initializeCanvas() {
@@ -179,6 +272,8 @@ class DrawingBoard {
         this.importInput.addEventListener('change', this.importDrawing.bind(this));
 
         this.canvas.addEventListener('mousemove', (e) => {
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
             if (!this.selectedObject || this.isDrawing || this.isDragging) return;
             
             const [x, y] = this.getMousePos(e);
@@ -694,6 +789,7 @@ class DrawingBoard {
                     this.currentLayer.objects.push({...this.tempShape});
                 } else {
                     this.currentLayer.objects.push(this.tempShape);
+                    this.addToShapeHistory(this.tempShape);
                 }
                 this.tempShape = null;
                 this.saveState();
