@@ -547,7 +547,7 @@ button {
     border: 1px solid #404040;
     border-radius: 8px;
     padding: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
 .shape-history-panel h3 {
@@ -555,23 +555,43 @@ button {
     font-size: 12px;
     text-align: center;
     color: #999;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #404040;
 }
 
 #shapeHistory {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#shapeHistory::-webkit-scrollbar {
+    width: 6px;
+}
+
+#shapeHistory::-webkit-scrollbar-track {
+    background: #333;
+    border-radius: 3px;
+}
+
+#shapeHistory::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
 }
 
 #shapeHistory canvas {
     border: 1px solid #404040;
     border-radius: 4px;
     cursor: pointer;
-    transition: transform 0.2s, border-color 0.2s;
-    background: #333;
+    transition: all 0.2s ease;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 #shapeHistory canvas:hover {
     transform: scale(1.05);
     border-color: #0066cc;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }

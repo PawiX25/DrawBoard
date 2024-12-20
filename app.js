@@ -173,13 +173,68 @@ class DrawingBoard {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, 50, 50);
             
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < 50; i += 10) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, 50);
+                ctx.moveTo(0, i);
+                ctx.lineTo(50, i);
+                ctx.stroke();
+            }
+            
+            const previewShape = JSON.parse(JSON.stringify(shape));
+            
+            const padding = 5;
+            const availableSpace = 50 - (padding * 2);
+            let scale = 1;
+            
+            if (shape.width && shape.height) {
+                scale = Math.min(
+                    availableSpace / shape.width,
+                    availableSpace / shape.height,
+                    1
+                );
+            }
+            
             ctx.save();
-            ctx.translate(5, 5);
-            const scale = Math.min(40 / shape.width, 40 / shape.height);
+            ctx.translate(25, 25);
             ctx.scale(scale, scale);
-            this.drawShape(shape, ctx);
-            ctx.restore();
-
+            
+            if (shape.type === 'brush' || shape.type === 'freehand') {
+                const centerX = (shape.x + shape.width / 2);
+                const centerY = (shape.y + shape.height / 2);
+                previewShape.points = shape.points.map(point => [
+                    point[0] - centerX,
+                    point[1] - centerY
+                ]);
+                previewShape.x = -shape.width / 2;
+                previewShape.y = -shape.height / 2;
+            } else if (shape.type === 'polygon') {
+                const centerX = shape.x + shape.width / 2;
+                const centerY = shape.y + shape.height / 2;
+                previewShape.points = shape.points.map(point => [
+                    point[0] - centerX,
+                    point[1] - centerY
+                ]);
+                previewShape.x = -shape.width / 2;
+                previewShape.y = -shape.height / 2;
+            } else {
+                previewShape.x = -shape.width / 2;
+                previewShape.y = -shape.height / 2;
+                if (previewShape.startX !== undefined) {
+                    const offsetX = -shape.width / 2 - shape.x;
+                    const offsetY = -shape.height / 2 - shape.y;
+                    previewShape.startX += offsetX;
+                    previewShape.startY += offsetY;
+                    previewShape.endX += offsetX;
+                    previewShape.endY += offsetY;
+                }
+            }
+            
+            this.drawShape(previewShape, ctx);
+            ctx.restore();       
             if (this.selectedObject === shape) {
                 ctx.strokeStyle = '#0066cc';
                 ctx.lineWidth = 2;
