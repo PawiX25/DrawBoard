@@ -79,6 +79,7 @@ class DrawingBoard {
 
         this.shapeHistory = [];
         this.maxShapeHistory = 10;
+        this.shapeReferences = new WeakMap();
 
         document.getElementById('addPage').addEventListener('click', this.addPage.bind(this));
         document.getElementById('prevPages').addEventListener('click', () => this.scrollPages(-1));
@@ -140,28 +141,16 @@ class DrawingBoard {
 
     addToShapeHistory(shape) {
         if (!shape || shape.type === 'image' || shape.type === 'text') return;
-
-        const shapeClone = JSON.parse(JSON.stringify(shape));
         
-        shapeClone.x = 0;
-        shapeClone.y = 0;
-        if (shapeClone.points) {
-            const minX = Math.min(...shapeClone.points.map(p => p[0]));
-            const minY = Math.min(...shapeClone.points.map(p => p[1]));
-            shapeClone.points = shapeClone.points.map(p => [p[0] - minX, p[1] - minY]);
-        }
-        if (shapeClone.startX !== undefined) {
-            const minX = Math.min(shapeClone.startX, shapeClone.endX);
-            const minY = Math.min(shapeClone.startY, shapeClone.endY);
-            shapeClone.startX -= minX;
-            shapeClone.startY -= minY;
-            shapeClone.endX -= minX;
-            shapeClone.endY -= minY;
-        }
-
-        this.shapeHistory.unshift(shapeClone);
+        this.shapeReferences.set(shape, {
+            layerId: shape.layerId,
+            index: this.currentLayer.objects.indexOf(shape)
+        });
+        
+        this.shapeHistory.unshift(shape);
         if (this.shapeHistory.length > this.maxShapeHistory) {
-            this.shapeHistory.pop();
+            const removed = this.shapeHistory.pop();
+            this.shapeReferences.delete(removed);
         }
         
         this.updateShapeHistoryDisplay();
@@ -171,6 +160,11 @@ class DrawingBoard {
         this.shapeHistoryContainer.innerHTML = '';
         
         this.shapeHistory.forEach((shape, index) => {
+            if (!this.shapeReferences.has(shape)) {
+                this.shapeHistory.splice(index, 1);
+                return;
+            }
+
             const preview = document.createElement('canvas');
             preview.width = 50;
             preview.height = 50;
@@ -179,67 +173,47 @@ class DrawingBoard {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, 50, 50);
             
-            const scaledShape = JSON.parse(JSON.stringify(shape));
-            const scale = Math.min(40 / shape.width, 40 / shape.height);
-            
             ctx.save();
             ctx.translate(5, 5);
+            const scale = Math.min(40 / shape.width, 40 / shape.height);
             ctx.scale(scale, scale);
-            this.drawShape(scaledShape, ctx);
+            this.drawShape(shape, ctx);
             ctx.restore();
 
-            if (this.selectedObject && 
-                this.selectedObject.type === shape.type &&
-                this.selectedObject.color === shape.color &&
-                this.selectedObject.size === shape.size) {
+            if (this.selectedObject === shape) {
                 ctx.strokeStyle = '#0066cc';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(0, 0, 50, 50);
             }
             
             preview.addEventListener('click', () => {
-                document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
-                document.getElementById('select').classList.add('active');
-                this.currentTool = 'select';
-                
-                const newShape = JSON.parse(JSON.stringify(shape));
-                newShape.layerId = this.currentLayer.id;
-                
-                const rect = this.canvas.getBoundingClientRect();
-                const centerX = ((rect.width / 2) - this.panOffset.x) / this.zoomLevel;
-                const centerY = ((rect.height / 2) - this.panOffset.y) / this.zoomLevel;
-                
-                const shapeOffsetX = newShape.width / 2;
-                const shapeOffsetY = newShape.height / 2;
-                
-                newShape.x = centerX - shapeOffsetX;
-                newShape.y = centerY - shapeOffsetY;
-                
-                if (newShape.startX !== undefined) {
-                    const dx = centerX - (shape.startX + shapeOffsetX);
-                    const dy = centerY - (shape.startY + shapeOffsetY);
-                    newShape.startX += dx;
-                    newShape.endX += dx;
-                    newShape.startY += dy;
-                    newShape.endY += dy;
+                const ref = this.shapeReferences.get(shape);
+                if (ref) {
+                    const layer = this.layers.find(l => l.id === ref.layerId);
+                    if (layer && layer.objects.includes(shape)) {
+                        document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+                        document.getElementById('select').classList.add('active');
+                        this.currentTool = 'select';
+                        this.selectedObject = shape;
+                        this.redrawCanvas();
+                    }
                 }
-                
-                if (newShape.points) {
-                    newShape.points = newShape.points.map(point => [
-                        point[0] + (centerX - (shape.x + shapeOffsetX)),
-                        point[1] + (centerY - (shape.y + shapeOffsetY))
-                    ]);
-                }
-                
-                this.currentLayer.objects.push(newShape);
-                this.selectedObject = newShape;
-                this.redrawCanvas();
-                this.saveState();
             });
             
-            preview.title = `Create and select ${shape.type}`;
+            preview.title = `Select ${shape.type}`;
             this.shapeHistoryContainer.appendChild(preview);
         });
+    }
+
+    deleteShape(shape) {
+        if (this.shapeReferences.has(shape)) {
+            const index = this.shapeHistory.indexOf(shape);
+            if (index !== -1) {
+                this.shapeHistory.splice(index, 1);
+            }
+            this.shapeReferences.delete(shape);
+            this.updateShapeHistoryDisplay();
+        }
     }
 
     reuseShape(originalShape) {
@@ -1610,6 +1584,7 @@ class DrawingBoard {
                         if (layer) {
                             const index = layer.objects.indexOf(this.selectedObject);
                             if (index > -1) {
+                                this.deleteShape(this.selectedObject); // Add this line
                                 layer.objects.splice(index, 1);
                                 this.selectedObject = null;
                                 this.redrawCanvas();
