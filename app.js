@@ -187,9 +187,57 @@ class DrawingBoard {
             ctx.scale(scale, scale);
             this.drawShape(scaledShape, ctx);
             ctx.restore();
+
+            if (this.selectedObject && 
+                this.selectedObject.type === shape.type &&
+                this.selectedObject.color === shape.color &&
+                this.selectedObject.size === shape.size) {
+                ctx.strokeStyle = '#0066cc';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, 50, 50);
+            }
             
-            preview.addEventListener('click', () => this.reuseShape(shape));
-            preview.title = `Reuse ${shape.type}`;
+            preview.addEventListener('click', () => {
+                document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+                document.getElementById('select').classList.add('active');
+                this.currentTool = 'select';
+                
+                const newShape = JSON.parse(JSON.stringify(shape));
+                newShape.layerId = this.currentLayer.id;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const centerX = ((rect.width / 2) - this.panOffset.x) / this.zoomLevel;
+                const centerY = ((rect.height / 2) - this.panOffset.y) / this.zoomLevel;
+                
+                const shapeOffsetX = newShape.width / 2;
+                const shapeOffsetY = newShape.height / 2;
+                
+                newShape.x = centerX - shapeOffsetX;
+                newShape.y = centerY - shapeOffsetY;
+                
+                if (newShape.startX !== undefined) {
+                    const dx = centerX - (shape.startX + shapeOffsetX);
+                    const dy = centerY - (shape.startY + shapeOffsetY);
+                    newShape.startX += dx;
+                    newShape.endX += dx;
+                    newShape.startY += dy;
+                    newShape.endY += dy;
+                }
+                
+                if (newShape.points) {
+                    newShape.points = newShape.points.map(point => [
+                        point[0] + (centerX - (shape.x + shapeOffsetX)),
+                        point[1] + (centerY - (shape.y + shapeOffsetY))
+                    ]);
+                }
+                
+                this.currentLayer.objects.push(newShape);
+                this.selectedObject = newShape;
+                this.redrawCanvas();
+                this.saveState();
+            });
+            
+            preview.title = `Create and select ${shape.type}`;
             this.shapeHistoryContainer.appendChild(preview);
         });
     }
