@@ -242,22 +242,21 @@ class DrawingBoard {
             }
             
             preview.addEventListener('click', () => {
-                const ref = this.shapeReferences.get(shape);
-                if (ref) {
-                    const layer = this.layers.find(l => l.id === ref.layerId);
-                    if (layer && layer.objects.includes(shape)) {
-                        document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
-                        document.getElementById('select').classList.add('active');
-                        this.currentTool = 'select';
-                        this.selectedObject = shape;
-                        this.redrawCanvas();
-                    }
-                }
+                this.handleShapePreviewClick(shape);
             });
             
             preview.title = `Select ${shape.type}`;
             this.shapeHistoryContainer.appendChild(preview);
         });
+    }
+
+    handleShapePreviewClick(shape) {
+        document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+        document.getElementById('select').classList.add('active');
+        this.currentTool = 'select';
+        this.selectedObject = shape;
+        this.redrawCanvas();
+        this.updateToolUI();
     }
 
     deleteShape(shape) {
