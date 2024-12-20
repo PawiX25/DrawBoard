@@ -543,6 +543,7 @@ class DrawingBoard {
             };
             
             this.currentLayer.objects.push(polygon);
+            this.addToShapeHistory(polygon);
         }
         
         this.isDrawingPolygon = false;
